@@ -62,9 +62,9 @@ begin
                       "time_bounds","time_written","nstep","mscur", \
                       "mdcur","mcsec","mcdate","levlak","levgrnd"  /)
 
-   root_dir    = "/projects/C3WE/CESM_RUNS/"
-   scratch_dir = "/projects/C3WE/CESM_RUNS/scratch/"
-   final_dir   = "/projects/C3WE/CESM_RUNS/CONUS/"
+   root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
+   scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch"
+   final_dir   = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/"
 
 
    ensemble_member                 = ispan(1,n_ens,1)
