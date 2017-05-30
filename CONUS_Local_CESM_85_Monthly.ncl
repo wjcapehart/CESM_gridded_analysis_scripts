@@ -24,6 +24,7 @@ begin
    ; Repository, and Date Runs
    ;
 
+   rcp   = "RCP85"
 
    ;
    ; Clipbox Latitude and Longitudes
@@ -35,10 +36,6 @@ begin
 
    far_west  = -129.00 + 360.0; degrees_east
    far_east  =  -52.00 + 360.0; degrees_east
-
-   n_ens = 30
-
-   rcp   = "RCP85"
 
    parameters = (/ "SOILLIQ","TSA", \
                    "ANN_FAREA_BURNED", \
@@ -56,46 +53,80 @@ begin
                    "Z500", \
                    "ZWT" /)
 
-   tossed_params = (/ "BSW", "DZSOI", "HKSAT", "SUCSAT", "ZSOI", "WATSAT", \
-                      "area", "topo", "landfrac", "landmask", "pftmask",   \
-                      "time_bounds","time_written","nstep","mscur", \
-                      "mdcur","mcsec","mcdate","levlak","levgrnd"  /)
-
    root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
    scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch"
    final_dir   = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/"
-
 
    ensemble_member                 = ispan(1,n_ens,1)
    ensemble_member!0               = "ensemble_member"
    ensemble_member&ensemble_member = ispan(1,n_ens,1)
 
-   part1 = (/ "b.e11.B20TRC5CNBDRD.f09_g16.",  \
-              "b.e11.BRCP85C5CNBDRD.f09_g16.", \
-              "b.e11.BRCP85C5CNBDRD.f09_g16." /)
+   if (rcp  .eq.  "RCP85") then
 
-   part2 = sprinti("%0.3i", ispan(1,n_ens,1))
-   part3 = ".clm2.h0."
-   part5 = (/ ".192001-200512.nc",  \
-              ".200601-208012.nc",  \
-              ".208101-210012.nc"  /)
+      time_full               = new( 1032+900+240, double)
+      time_full@units         = "days since 1920-01-01 00:00:00"
+      time_full@calendar      = "noleap"
+      time_full@bounds        = "time_bounds"
+      time_full!0             = "time_full"
+
+      n_ens = 30
+
+      nt00 = (/    0,       1032,     900+1032 /)
+      nt01 = (/ 1032, 1032 + 900, 1032+900+240 /) - 1
+      nt   = (/ 1032,        900 ,         240 /)
+
+      part1 = (/ "b.e11.B20TRC5CNBDRD.f09_g16.",  \
+                 "b.e11.BRCP85C5CNBDRD.f09_g16.", \
+                 "b.e11.BRCP85C5CNBDRD.f09_g16." /)
+
+      part2 = sprinti("%0.3i", ispan(1,n_ens,1))
+
+      part3 = ".clm2.h0."
+
+      part5 = (/ ".192001-200512.nc",  \
+                 ".200601-208012.nc",  \
+                 ".208101-210012.nc"  /)
+
+      time_of_last_month = "66065"; RCP8.5
+
+      scratchfile = "./deleteme85.nc"
+
+   else
+
+      time_full               = new( 1032+900, double)
+      time_full@units         = "days since 1920-01-01 00:00:00"
+      time_full@calendar      = "noleap"
+      time_full@bounds        = "time_bounds"
+      time_full!0             = "time_full"
+
+      n_ens = 15
+
+      nt00 = (/    0,        1032 /)
+      nt01 = (/ 1032, 1032 +  900 /) - 1
+      nt   = (/ 1032,         900 /)
+
+      part1 = (/ "b.e11.B20TRC5CNBDRD.f09_g16.",  \
+                 "b.e11.BRCP45C5CNBDRD.f09_g16." /)
+
+      part2 = sprinti("%0.3i", ispan(1,n_ens,1))
+
+      part3 = ".clm2.h0."
+
+      part5 = (/ ".192001-200512.nc",  \
+                 ".200601-208012.nc"  /)
+
+      time_of_last_month = "27375"; RCP4.5
+
+      scratchfile = "./deleteme45.nc"
+
+   end if
 
    n_timefiles  = dimsizes(part5)
    n_parameters = dimsizes(parameters)
 
-   nt00 = (/    0,       1032,     900+1032 /)
-   nt01 = (/ 1032, 1032 + 900, 1032+900+240 /) -1
-   nt   = (/ 1032,        900 ,         240 /)
-
    tf = 0
    ef = 1
    vf = 0
-
-   time_full               = new( 1032+900+240, double)
-   time_full@units         = "days since 1920-01-01 00:00:00"
-   time_full@calendar      = "noleap"
-   time_full@bounds        = "time_bounds"
-   time_full!0             = "time_full"
 
    nco_spatial_extraction_string = " -d lat,"                  + \
                                     sprintf("%5.2f",far_south) + \
@@ -106,7 +137,6 @@ begin
                                     ","                        + \
                                     sprintf("%6.2f",far_east)  + \
                                     " "
-   nco_time_extraction_string = " -d time,0,66065 " ; RCP8.5
 
    ;
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,35 +150,30 @@ begin
 
    ens1_ens1_date_diff = cd_convert(ens1_date,ensx_date@units)
 
-   delta_t_ens001_vs_ens00x =   -25550
-
-   last_month = 66065; RCP8.5
-
-
+   delta_t_ens001_vs_ens00x =   -25550; <- this will be the dif between ens 1 and the other ensembles
 
    do vf = 0, n_parameters-1
 
-      system("rm -v deleteme85.nc")
+      system("rm -v " + scratchfile)
 
       do ef = 0, n_ens-1
 
-         system("rm -v deleteme85.nc")
+         system("rm -v " + scratchfile)
 
          do tf = 0, n_timefiles-1
 
-            system("rm -v deleteme85.nc")
+            system("rm -v " + scratchfile)
 
             string_year = part5(tf)
-            longone = False
+            longone     = False
 
             if ((part2(ef) .eq. "001").and.(tf .eq. 0)) then
                string_year = ".185001-200512.nc"
-               longone = True
+               longone     = True
             else
                string_year = part5(tf)
-               longone = False
+               longone     = False
             end if
-
 
             cesm_filename = root_dir       + "/" + \
                             parameters(vf) + "/" + \
@@ -159,56 +184,63 @@ begin
                             string_year
 
             temp_file =     scratch_dir                 + \
-                            parameters(vf) + "_"        + \
-                            rcp            + "_"        + \
+                            parameters(vf)        + "_" + \
+                            rcp                   + "_" + \
                             sprinti("e%0.3i", (ef + 1)) + \
                             "_"                         + \
                             sprinti("t%0.3i", (tf + 1)) + \
                             ".nc"
 
-            nco_command = "ncea "               + \
+            ; extract spatial clipbox orig file -> scratch
+
+            nco_command = "ncea "                       + \
                           nco_spatial_extraction_string + \
-                          cesm_filename         + \
-                          " deleteme85.nc"
+                          cesm_filename                 + \
+                          " "                           + \
+                          scratchfile
 
-            print( " "+nco_command)
-            system(" "+nco_command)
+            print( " " + nco_command)
+            system(" " + nco_command)
 
-            nco_command = "ncks -v "     + \
-                          parameters(vf)  + \
-                          " deleteme85.nc " + \
+            ; extract variable from clipped file scratch -> temp_000
+
+            nco_command = "ncks -v "        + \
+                          parameters(vf)    + \
+                          " "               + \
+                          scratchfile       + \
+                          " "               + \
                           temp_file
 
+            print( " " + nco_command)
+            system(" " + nco_command)
 
+            print( "rm -v " + scratchfile)
+            system("rm -v " + scratchfile)
 
-            print( " "+nco_command)
-            system(" "+nco_command)
-            print( "rm -v deleteme85.nc")
-            system("rm -v deleteme85.nc")
          end do
 
          temp_files =    scratch_dir                 + \
-                         parameters(vf) + "_"        + \
-                         rcp            + "_"        + \
+                         parameters(vf)        + "_" + \
+                         rcp                   + "_" + \
                          sprinti("e%0.3i", (ef + 1)) + \
                          "_t*.nc"
 
-
          ens_file =      scratch_dir                 + \
-                         parameters(vf) + "_"        + \
-                         rcp            + "_"        + \
+                         parameters(vf)        + "_" + \
+                         rcp                   + "_" + \
                          sprinti("e%0.3i", (ef + 1)) + \
                          ".nc"
 
+         ; concatemnate ensembles temp_000 -> ensemble_file.nc
 
          nco_command = "ncrcat -h " + temp_files + " " + ens_file
          print( " " + nco_command)
          system(" " + nco_command)
 
+         ; concatemnate ensembles by time for each temp_000 file
+
          print( " rm -frv " + temp_files)
          system(" rm -frv " + temp_files)
-
-
 
       end do
       ;;  we now have to reset the
@@ -251,74 +283,99 @@ begin
 
       ;; fix the tme bounds for the first ensemnble member
 
-         nco_command = "ncap -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " deleteme85.nc"
+         ; move zero date from 1850 to 1920 for the first ensemble ens_001 -> scratch
+
+         nco_command = "ncap2 -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
-         nco_command = "ncatted -O -a long_name,time,a,c,'time' deleteme85.nc"
-         print( " " + nco_command)
-         system(" " + nco_command)
-
-         nco_command = "ncatted -O -a units,time,a,c,'days since 1920-01-01 00:00:00' deleteme85.nc"
-         print( " " + nco_command)
-         system(" " + nco_command)
-
-         nco_command = "ncatted -O -a calendar,time,a,c,'noleap' deleteme85.nc"
-         print( " " + nco_command)
-         system(" " + nco_command)
-
-         nco_command = "ncatted -O -a bounds,time,a,c,'time_bounds' deleteme85.nc"
-         print( " " + nco_command)
-         system(" " + nco_command)
-
-         nco_command = "ncatted -O -a long_name,time_bounds,a,c,'history time interval endpoints' deleteme85.nc"
-         print( " " + nco_command)
-         system(" " + nco_command)
+         ; wipe out ens_001_file
 
          system("rm -v "+ ens_001_file)
 
-         nco_command = "ncea  -d time,31.,66065. deleteme85.nc  " + ens_001_file
+         ; fix long name for time scratch -> scratch
+
+         nco_command = "ncatted -O -a long_name,time,a,c,'time'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
-         system("rm -v deleteme85.nc")
+         ; fix units for time scratch -> scratch
 
-      ;; concatenate by ensemble member
+         nco_command = "ncatted -O -a units,time,a,c,'days since 1920-01-01 00:00:00'  " + scratchfile
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; fix calendar for time scratch -> scratch
+
+         nco_command = "ncatted -O -a calendar,time,a,c,'noleap'  " + scratchfile
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; fix timebound coordinate for time scratch -> scratch
+
+         nco_command = "ncatted -O -a bounds,time,a,c,'time_bounds'  " + scratchfile
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; fix longname for time_bounds scratch -> scratch
+
+         nco_command = "ncatted -O -a long_name,time_bounds,a,c,'history time interval endpoints'  " + scratchfile
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; clip the time series for ensemble 1 to start at 1920
+
+         nco_command = "ncea  -d time,31.,"+time_of_last_month+".  " + scratchfile +  " " + ens_001_file
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; remove series scratchfile
+
+         print( " rm -frv " + scratchfile)
+         system(" rm -frv " + scratchfile)
+
+         ; concatenate by all ensemble member into a single file
 
          nco_command = "ncecat "+ ens_0xx_files + " " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
 
+         ; add longname attribute to the time attribute
+
          nco_command = "ncatted -O -a long_name,time,a,c,'time' " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
+
+         ; change the name of the record dimension from 'record' to 'ensemble'
 
          nco_command = "ncrename -O -d record,ensemble " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
 
+         ; nccopy classic netcdf v3 to netcdf v4
 
-         print("  /usr/local/netcdf/bin/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
-         system(" /usr/local/netcdf/bin/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         print("  $NETCDF_BIN/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         system(" $NETCDF_BIN/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
 
-
+         ; swap the ensemble and time dimensions
 
          if (parameters(vf) .eq. "SOILLIQ")
 
-            nco_command = "ncpdq -a time,ensemble " + ens_all_file + " deleteme85.nc"
+            nco_command = "ncpdq -a time,ensemble " + ens_all_file + "  " + scratchfile
             print( " " + nco_command)
             system(" " + nco_command)
 
          else
 
-            nco_command = "ncpdq -a time,ensemble " + ens_all_file + " deleteme85.nc"
+            nco_command = "ncpdq -a time,ensemble " + ens_all_file + "  " + scratchfile
             print( " " + nco_command)
             system(" " + nco_command)
 
          end if
 
-         system("rm -v "+ ens_0xx_files)
-         system("rm -v deleteme85.nc")
+         system(" rm -v " + ens_0xx_files)
+         print( " rm -v " + scratchfile)
+         system(" rm -v " + scratchfile)
 
       ;; done!
       print( "ncdump -h " + ens_all_file)
