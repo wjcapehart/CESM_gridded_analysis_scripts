@@ -354,8 +354,8 @@ begin
 
          ; nccopy classic netcdf v3 to netcdf v4
 
-         print("  $NETCDF_BIN/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
-         system(" $NETCDF_BIN/nccopy -u -k 3 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         print("  $NETCDF_BIN/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         system(" $NETCDF_BIN/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
 
          ; swap the ensemble and time dimensions
 
