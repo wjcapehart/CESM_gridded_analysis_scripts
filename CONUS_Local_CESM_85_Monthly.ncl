@@ -4,9 +4,6 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 
 
-
-
-
 begin
 
  ;   setfileoption("nc", "FileStructure", "Advanced")
@@ -24,7 +21,11 @@ begin
    ; Repository, and Date Runs
    ;
 
-   rcp   = "RCP85"
+   rcploop = (/ "RCP45","RCP85" /)
+
+do rcpl = 0, 1
+
+   rcp   = rcploop(rcpl)
 
    ;
    ; Clipbox Latitude and Longitudes
@@ -37,20 +38,20 @@ begin
    far_west  = -129.00 + 360.0; degrees_east
    far_east  =  -52.00 + 360.0; degrees_east
 
-   parameters = (/ "SOILLIQ","TSA", \
+   parameters = (/ "QCHANR", \
+                   "SOILLIQ", \
+                   "TSA", \
                    "ANN_FAREA_BURNED", \
                    "FIRESEASONL", \
                    "FLDS", \
                    "FSDS", \
                    "FSR", \
                    "Q2M", \
-                   "QCHANR", \
                    "RAIN", \
                    "SNOW", \
                    "SNOWLIQ", \
                    "U10", \
                    "WIND", \
-                   "Z500", \
                    "ZWT" /)
 
    root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
@@ -84,9 +85,13 @@ begin
                  ".200601-208012.nc",  \
                  ".208101-210012.nc"  /)
 
+      full_record = "CONUS_1920-2100"
+
+
       time_of_last_month = "66065"; RCP8.5
 
       scratchfile = "./deleteme85.nc"
+
 
    else
 
@@ -112,7 +117,9 @@ begin
       part5 = (/ ".192001-200512.nc",  \
                  ".200601-208012.nc"  /)
 
-      time_of_last_month = "27375"; RCP4.5
+      full_record = "CONUS_1920-2080"
+
+      time_of_last_month = "58765"; RCP4.5
 
       scratchfile = "./deleteme45.nc"
 
@@ -128,6 +135,8 @@ begin
    tf = 0
    ef = 1
    vf = 0
+
+
 
    nco_spatial_extraction_string = " -d lat,"                  + \
                                     sprintf("%5.2f",far_south) + \
@@ -155,6 +164,35 @@ begin
 
    do vf = 0, n_parameters-1
 
+      print(parameters(vf))
+      if (parameters(vf) .eq. "QCHANR") then
+         nco_spatial_extraction_string = " -d lat,"                  + \
+                                          sprintf("%5.2f",far_south) + \
+                                          ","                        + \
+                                          sprintf("%5.2f",far_north) + \
+                                          " -d lon,"                 + \
+                                          sprintf("%6.2f",far_west-360.)  + \
+                                          ","                        + \
+                                          sprintf("%6.2f",far_east-360.)  + \
+                                          " "
+      else
+         nco_spatial_extraction_string = " -d lat,"                  + \
+                                          sprintf("%5.2f",far_south) + \
+                                          ","                        + \
+                                          sprintf("%5.2f",far_north) + \
+                                          " -d lon,"                 + \
+                                          sprintf("%6.2f",far_west)  + \
+                                          ","                        + \
+                                          sprintf("%6.2f",far_east)  + \
+                                          " "
+      end if
+
+      if (parameters(vf) .eq. "QCHANR") then
+         part3 = ".rtm.h0."
+      else
+         part3 = ".clm2.h0."
+      end if
+
       system("rm -v " + scratchfile)
 
       do ef = 0, n_ens-1
@@ -168,7 +206,7 @@ begin
             string_year = part5(tf)
             longone     = False
 
-            if ((part2(ef) .eq. "001").and.(tf .eq. 0)) then
+            if ((ef .eq. 0).and.(tf .eq. 0)) then
                string_year = ".185001-200512.nc"
                longone     = True
             else
@@ -180,7 +218,7 @@ begin
                             parameters(vf) + "/" + \
                             part1(tf)      +       \
                             part2(ef)      +       \
-                            ".clm2.h0."    +       \
+                            part3          +       \
                             parameters(vf) +       \
                             string_year
 
@@ -203,20 +241,22 @@ begin
             print( " " + nco_command)
             system(" " + nco_command)
 
+
             ; extract variable from clipped file scratch -> temp_000
 
-            nco_command = "ncks -v "        + \
-                          parameters(vf)    + \
-                          " "               + \
-                          scratchfile       + \
-                          " "               + \
-                          temp_file
+               nco_command = "ncks -v "        + \
+                              parameters(vf)    + \
+                              " "               + \
+                              scratchfile       + \
+                              " "               + \
+                              temp_file
 
-            print( " " + nco_command)
-            system(" " + nco_command)
+               print( " " + nco_command)
+               system(" " + nco_command)
 
-            print( "rm -v " + scratchfile)
-            system("rm -v " + scratchfile)
+               print( "rm -v " + scratchfile)
+               system("rm -v " + scratchfile)
+
 
          end do
 
@@ -238,14 +278,14 @@ begin
          print( " " + nco_command)
          system(" " + nco_command)
 
-         ; concatemnate ensembles by time for each temp_000 file
+         ; remove the temp_000
 
          print( " rm -frv " + temp_files)
          system(" rm -frv " + temp_files)
 
       end do
-      ;;  we now have to reset the
       ;;
+      ;;  we now have to reset the fist ensemble to start at 1920 rather than 1850
       ;;
       ;;  ncap -s "time_bounds=time_bounds-25550" -s  "time=time-25550"  ANN_FAREA_BURNED_RCP85_e001.nc temp.nc
       ;;
@@ -279,14 +319,14 @@ begin
       ens_all_file = scratch_dir             + \
                      parameters(vf)    + "_" + \
                      rcp               + "_" + \
-                     "CONUS_1920-2100"       + \
+                     full_record             + \
                      ".nc"
 
       ;; fix the tme bounds for the first ensemnble member
 
          ; move zero date from 1850 to 1920 for the first ensemble ens_001 -> scratch
 
-         nco_command = "ncap2 -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
+         nco_command = "ncap2  -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
@@ -296,35 +336,35 @@ begin
 
          ; fix long name for time scratch -> scratch
 
-         nco_command = "ncatted -O -a long_name,time,a,c,'time'  " + scratchfile
+         nco_command = "ncatted -O -a long_name,time,m,c,'time'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
          ; fix units for time scratch -> scratch
 
-         nco_command = "ncatted -O -a units,time,a,c,'days since 1920-01-01 00:00:00'  " + scratchfile
+         nco_command = "ncatted -O -a units,time,m,c,'days since 1920-01-01 00:00:00'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
          ; fix calendar for time scratch -> scratch
 
-         nco_command = "ncatted -O -a calendar,time,a,c,'noleap'  " + scratchfile
+         nco_command = "ncatted -O -a calendar,time,m,c,'noleap'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
          ; fix timebound coordinate for time scratch -> scratch
 
-         nco_command = "ncatted -O -a bounds,time,a,c,'time_bounds'  " + scratchfile
+         nco_command = "ncatted -O -a bounds,time,m,c,'time_bounds'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
          ; fix longname for time_bounds scratch -> scratch
 
-         nco_command = "ncatted -O -a long_name,time_bounds,a,c,'history time interval endpoints'  " + scratchfile
+         nco_command = "ncatted -O -a long_name,time_bounds,m,c,'history time interval endpoints'  " + scratchfile
          print( " " + nco_command)
          system(" " + nco_command)
 
-         ; clip the time series for ensemble 1 to start at 1920
+         ; clip the time series for ensemble 1 to start at 1920 scratch->ens_001_file
 
          nco_command = "ncea  -d time,31.,"+time_of_last_month+".  " + scratchfile +  " " + ens_001_file
          print( " " + nco_command)
@@ -335,54 +375,55 @@ begin
          print( " rm -frv " + scratchfile)
          system(" rm -frv " + scratchfile)
 
-         ; concatenate by all ensemble member into a single file
+         ; concatenate by all ensemble member into a single file ens_0xx_files->complete_ensemble
 
          nco_command = "ncecat "+ ens_0xx_files + " " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
 
-         ; add longname attribute to the time attribute
+         ; add longname attribute to the time attribute complete_ensemble->complete_ensemble
 
-         nco_command = "ncatted -O -a long_name,time,a,c,'time' " + ens_all_file
+         nco_command = "ncatted -O -a long_name,time,m,c,'time' " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
 
-         ; change the name of the record dimension from 'record' to 'ensemble'
+         ; change the name of the record dimension from 'record' to 'ensemble' complete_ensemble->complete_ensemble
 
          nco_command = "ncrename -O -d record,ensemble " + ens_all_file
          print( " " + nco_command)
          system(" " + nco_command)
 
+         ; swap the ensemble and time dimensions complete_ensemble file -> scratch
+
+         nco_command = "ncpdq  -a time,ensemble " + ens_all_file + "  " + scratchfile
+         print( " " + nco_command)
+         system(" " + nco_command)
+
+         ; clean scratch files
+
+         print( " rm -v " + ens_0xx_files)
+         system(" rm -v " + ens_0xx_files)
+
+         ; replace scratch->complete_ensemble
+
+         print( " mv -v " + scratchfile + " " + ens_all_file)
+         system(" mv -v " + scratchfile + " " + ens_all_file)
+
          ; nccopy classic netcdf v3 to netcdf v4
 
-         print("  $NETCDF_BIN/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
-         system(" $NETCDF_BIN/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         print( " $NETCDF/bin/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         system(" $NETCDF/bin/nccopy -u -4 -d 5 " + ens_all_file + " " + ens_all_file+"4")
+         print( " rm -v " + ens_all_file)
+         system(" rm -v " + ens_all_file)
 
-         ; swap the ensemble and time dimensions
-
-         if (parameters(vf) .eq. "SOILLIQ")
-
-            nco_command = "ncpdq -a time,ensemble " + ens_all_file + "  " + scratchfile
-            print( " " + nco_command)
-            system(" " + nco_command)
-
-         else
-
-            nco_command = "ncpdq -a time,ensemble " + ens_all_file + "  " + scratchfile
-            print( " " + nco_command)
-            system(" " + nco_command)
-
-         end if
-
-         system(" rm -v " + ens_0xx_files)
-         print( " rm -v " + scratchfile)
-         system(" rm -v " + scratchfile)
 
       ;; done!
-      print( "ncdump -h " + ens_all_file)
-      system("ncdump -h " + ens_all_file)
+      print( " $NETCDF/bin/ncdump -h " + ens_all_file+"4")
+      system(" $NETCDF/bin/ncdump -h " + ens_all_file+"4")
 
    end do
+   delete([/ time_full, nt00,nt01,nt,part1,part2,part3,part5, ensemble_member /])
 
+end do
 
 end
