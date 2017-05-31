@@ -54,12 +54,9 @@ begin
                    "ZWT" /)
 
    root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
-   scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch"
+   scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch/"
    final_dir   = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/"
 
-   ensemble_member                 = ispan(1,n_ens,1)
-   ensemble_member!0               = "ensemble_member"
-   ensemble_member&ensemble_member = ispan(1,n_ens,1)
 
    if (rcp  .eq.  "RCP85") then
 
@@ -120,6 +117,10 @@ begin
       scratchfile = "./deleteme45.nc"
 
    end if
+
+   ensemble_member                 = ispan(1,n_ens,1)
+   ensemble_member!0               = "ensemble_member"
+   ensemble_member&ensemble_member = ispan(1,n_ens,1)
 
    n_timefiles  = dimsizes(part5)
    n_parameters = dimsizes(parameters)
