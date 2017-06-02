@@ -54,6 +54,8 @@ do rcpl = 0, 1
                    "WIND", \
                    "ZWT" /)
 
+   parameters := (/ "VOLR" /)
+
    root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
    scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch/"
    final_dir   = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/"
@@ -165,7 +167,7 @@ do rcpl = 0, 1
    do vf = 0, n_parameters-1
 
       print(parameters(vf))
-      if (parameters(vf) .eq. "QCHANR") then
+      if ((parameters(vf) .eq. "QCHANR").or.(parameters(vf) .eq. "VOLR"))  then
          nco_spatial_extraction_string = " -d lat,"                  + \
                                           sprintf("%5.2f",far_south) + \
                                           ","                        + \
@@ -187,7 +189,7 @@ do rcpl = 0, 1
                                           " "
       end if
 
-      if (parameters(vf) .eq. "QCHANR") then
+      if ((parameters(vf) .eq. "QCHANR").or.(parameters(vf) .eq. "VOLR")) then
          part3 = ".rtm.h0."
       else
          part3 = ".clm2.h0."
