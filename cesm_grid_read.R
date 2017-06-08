@@ -4,6 +4,14 @@ library(ncdf4)
 library(maps)
 
 
+# get specific areas to extract..
+
+target_lon  <- -104.
+target_lat  <-   44.
+target_ens  <-    1
+target_date <- as.Date("2050-01-01")
+
+
 # get URL root location (comment out if in windows)
 URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/testAll/"
 
@@ -89,12 +97,19 @@ lat <- ncvar_get(nc    = nc.85,         # netcdf file ID
                  varid = "lat"  # variable name from file
                 )
 
+# location information
+
 lon <- lon - 360.0
 
 minlon <- min(lon) 
 maxlon <- max(lon) 
 minlat <- min(lat)
 maxlat <- max(lat)
+
+
+target_x <- which.min(abs(           lon - target_lon)) 
+target_y <- which.min(abs(           lat - target_lat)) 
+target_t <- which.min(abs(time_months.85 - target_date)) 
 
 # import data coordinates
 
@@ -112,12 +127,10 @@ t_2m.85 <- ncvar_get(nc      = nc.85,  # netcdf file ID
                     )
 
 
-# map
+# making a map
 
-ens   <-  1
-month <- 30
 
-plot_var =  t_2m.45[,,ens, month] - 273.17
+plot_var =  t_2m.45[,,target_ens, target_t] - 273.17
 
 filled.contour(x = lon, 
                y = lat,
@@ -133,38 +146,76 @@ filled.contour(x = lon,
                xlab = "Longitude", 
                ylab = "Latitude",
                plot.axes = {axis(1); axis(2);
-                            map('state',
-                            xlim= c(minlon, maxlon),
-                            ylim= c(minlat, maxlat),
-                            add = TRUE,
-                            col = "black")
+                            map(database = "world",
+                                xlim     = c(minlon, maxlon),
+                                ylim     = c(minlat, maxlat),
+                                add      = TRUE,
+                                col      = "black")
                            },
                main = paste("RCP 4.5 Air temp for ",
-                            time_months.45[month], "in deg C",
+                            time_months.45[target_t], "in deg C",
                             sep="")
               )
+
+plot_var =  t_2m.85[,,target_ens, target_t] - 273.17
+
+filled.contour(x = lon, 
+               y = lat,
+               z = plot_var, 
+               color.palette = colorRampPalette(c("violet",
+                                                  "blue",
+                                                  "lightblue",
+                                                  "yellow",
+                                                  "orange",
+                                                  "red"
+               )
+               ),
+               xlab = "Longitude", 
+               ylab = "Latitude",
+               plot.axes = {axis(1); axis(2);
+                 map(database = "world",
+                     xlim     = c(minlon, maxlon),
+                     ylim     = c(minlat, maxlat),
+                     add      = TRUE,
+                     col      = "black")
+               },
+               main = paste("RCP 8.5 Air temp for ",
+                            time_months.85[target_t], " in deg C",
+                            sep="")
+)
+
 
 
 
 # line plot
 
-target_lon <- -104.
-target_lat <-   44.
-
-ens        <-    1
-
-target_x = which.min(abs(lon - target_lon)) 
-target_y = which.min(abs(lat - target_lat)) 
 
 plot(x = time_months.45,
-     y = t_2m.45[target_x,target_y,ens,],
+     y = t_2m.45[target_x,target_y,target_ens,],
      main = paste("RCP 4.5 Air temp for Ens ",
-                  ens,
+                  target_ens,
                   " @ ",
                   target_lon, "E ",
                   target_lat, "N ",
-                  "in deg C"),
+                  " in deg C",
+                  sep=""),
      type = "l",
      xlab = "Time",
      ylab = "Temperature"
     )
+
+
+plot(x = time_months.85,
+     y = t_2m.85[target_x, target_y, target_ens,],
+     main = paste("RCP 4.5 Air temp for Ens ",
+                  target_ens,
+                  " @ ",
+                  target_lon, "E ",
+                  target_lat, "N ",
+                  " in deg C",
+                  sep=""),
+     type = "l",
+     xlab = "Time",
+     ylab = "Temperature"
+)
+
