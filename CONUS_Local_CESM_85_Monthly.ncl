@@ -52,9 +52,19 @@ do rcpl = 0, 1
                    "SNOWLIQ", \
                    "U10", \
                    "WIND", \
-                   "ZWT" /)
+                   "ZWT", \
+                   "VOLR", \
+                   "TREFHT", \
+                   "TREFHTMN", \
+                   "TREFHTMX", \
+                   "PSL" /)
 
-   parameters := (/ "VOLR" /)
+   parameters := (/ \
+                    "PSL",       \
+                    "TREFHT",   \
+                    "TREFHTMN", \
+                    "TREFHTMX" \
+                    /)
 
    root_dir    = "/projects/ECEP/CESM_Ensembles/CESM_LES_MES_ORIGINAL_OUTPUT/"
    scratch_dir = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/scratch/"
@@ -192,7 +202,14 @@ do rcpl = 0, 1
       if ((parameters(vf) .eq. "QCHANR").or.(parameters(vf) .eq. "VOLR")) then
          part3 = ".rtm.h0."
       else
-         part3 = ".clm2.h0."
+         if ((parameters(vf) .eq. "PSL"     ).or. \
+             (parameters(vf) .eq. "TREFHT"  ).or. \
+             (parameters(vf) .eq. "TREFHTMN").or. \
+             (parameters(vf) .eq. "TREFHTMX")) then
+            part3 = ".cam.h0."
+         else
+            part3 = ".clm2.h0."
+         end if
       end if
 
       system("rm -v " + scratchfile)
@@ -328,9 +345,29 @@ do rcpl = 0, 1
 
          ; move zero date from 1850 to 1920 for the first ensemble ens_001 -> scratch
 
-         nco_command = "ncap2  -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
-         print( " " + nco_command)
-         system(" " + nco_command)
+
+         if (part3 .ne. ".cam.h0.") then
+
+            nco_command = "ncap2  -s 'time_bounds=time_bounds-25550' -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+
+            nco_command = "ncatted -O -a bounds,time,m,c,'time_bounds'  " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+
+            ; fix longname for time_bounds scratch -> scratch
+
+            nco_command = "ncatted -O -a long_name,time_bounds,m,c,'history time interval endpoints'  " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+
+
+         else
+            nco_command = "ncap2 -s 'time=time-25550' "+ ens_001_file + " " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+         end if
 
          ; wipe out ens_001_file
 
@@ -354,18 +391,21 @@ do rcpl = 0, 1
          print( " " + nco_command)
          system(" " + nco_command)
 
+
+         ; add coordinate attribute
+
+
+         if (parameters(vf) .eq. "SOILLIQ") then
+            nco_command = "ncatted -O -a coordinate,"+parameters(vf)+",m,c,'time levgrnd latitude longitude'  " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+         else
+            nco_command = "ncatted -O -a coordinate,"+parameters(vf)+",m,c,'time latitude longitude'  " + scratchfile
+            print( " " + nco_command)
+            system(" " + nco_command)
+         end if
+
          ; fix timebound coordinate for time scratch -> scratch
-
-         nco_command = "ncatted -O -a bounds,time,m,c,'time_bounds'  " + scratchfile
-         print( " " + nco_command)
-         system(" " + nco_command)
-
-         ; fix longname for time_bounds scratch -> scratch
-
-         nco_command = "ncatted -O -a long_name,time_bounds,m,c,'history time interval endpoints'  " + scratchfile
-         print( " " + nco_command)
-         system(" " + nco_command)
-
          ; clip the time series for ensemble 1 to start at 1920 scratch->ens_001_file
 
          nco_command = "ncea  -d time,31.,"+time_of_last_month+".  " + scratchfile +  " " + ens_001_file
