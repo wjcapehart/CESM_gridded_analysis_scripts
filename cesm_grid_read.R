@@ -239,14 +239,7 @@ filled.contour(x = lon,                                         # x coordinate
                      xlim     = c(minlon, maxlon),              # x axis range
                      ylim     = c(minlat, maxlat),              # y axis range
                      add      = TRUE,                           # add to current plot
-                     col      = "black") }                       # map color
-                 plot.axes = {axis(1); axis(2);                   # mapping info begins
-                   map(database = "usa",                   # map border dataset
-                       xlim     = c(minlon, maxlon),              # x axis range
-                       ylim     = c(minlat, maxlat),              # y axis range
-                       add      = TRUE,                           # add to current plot
-                       col      = "black")                        # map color
-                 }
+                     col      = "black") }                      # map color
                )
 
 
@@ -281,7 +274,7 @@ plot(x    = time_months.45,                        # x value
 
 
 plot(x    = time_months.85,                        # x value
-     y    = var.45[target_x,target_y,target_ens,], # y value
+     y    = var.85[target_x,target_y,target_ens,], # y value
      type = "l",                                   # plot type
      col  = "red",                                 # plot color
      main = paste("RCP 8.5 ",                      # main title
