@@ -23,14 +23,12 @@ begin
 
    rcploop = (/ "RCP45","RCP85" /)
 
-do rcpl = 0, 1
-
-   rcp   = rcploop(rcpl)
 
    ;
    ; Clipbox Latitude and Longitudes
    ;
 
+   ; CONUS
 
    far_south =   23.00 ; degrees_north
    far_north =   55.00 ; degrees_north
@@ -38,7 +36,24 @@ do rcpl = 0, 1
    far_west  = -129.00 + 360.0; degrees_east
    far_east  =  -52.00 + 360.0; degrees_east
 
-   parameters = (/ "QCHANR", \
+   ; SWAfrica
+
+      ;;far_south =   23.00 ; degrees_north
+      ;far_north =   55.00 ; degrees_north
+
+      ;far_west  = -129.00 + 360.0; degrees_east
+      ;far_east  =  -52.00 + 360.0; degrees_east
+
+   ; Mongolia
+
+      ;far_south =   23.00 ; degrees_north
+      ;far_north =   55.00 ; degrees_north
+
+      ;far_west  = -129.00 + 360.0; degrees_east
+      ;far_east  =  -52.00 + 360.0; degrees_east
+
+
+   parameters := (/ "QCHANR", \
                    "SOILLIQ", \
                    "TSA", \
                    "ANN_FAREA_BURNED", \
@@ -71,6 +86,12 @@ do rcpl = 0, 1
    final_dir   = "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/"
 
 
+do rcpl = 1, 1
+
+   rcp   = rcploop(rcpl)
+
+
+
    if (rcp  .eq.  "RCP85") then
 
       time_full               = new( 1032+900+240, double)
@@ -80,6 +101,7 @@ do rcpl = 0, 1
       time_full!0             = "time_full"
 
       n_ens = 30
+      nens = n_ens
 
       nt00 = (/    0,       1032,     900+1032 /)
       nt01 = (/ 1032, 1032 + 900, 1032+900+240 /) - 1
@@ -114,6 +136,7 @@ do rcpl = 0, 1
       time_full!0             = "time_full"
 
       n_ens = 15
+      nens = n_ens
 
       nt00 = (/    0,        1032 /)
       nt01 = (/ 1032, 1032 +  900 /) - 1
