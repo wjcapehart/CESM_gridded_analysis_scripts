@@ -18,10 +18,14 @@ target_date <- as.Date("2050-07-01") # you need to wrap the date in the
 
 
 # get URL root location (comment out if in windows)
-URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/testAll/"
+#URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/testAll/"
 
 # get URL root location (comment out if in unix)
-# URL_Root_Directory <- "C:/Users/7446253/Documents/"
+ URL_Root_Directory <- "C:/Users/7446253/Documents/"
+
+# get URL root location (comment out if in not on the unix file system)
+# URL_Root_Directory <- "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/Monthly/"
+
 
 
 # files can be found at :"http://kyrill.ias.sdsmt.edu:8080/thredds/catalog.html"
