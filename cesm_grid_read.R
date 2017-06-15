@@ -21,10 +21,10 @@ target_date <- as.Date("2050-07-01") # you need to wrap the date in the
 #URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/testAll/"
 
 # get URL root location (comment out if in unix)
- URL_Root_Directory <- "C:/Users/7446253/Documents/"
+# URL_Root_Directory <- "C:/Users/7446253/Documents/"
 
 # get URL root location (comment out if in not on the unix file system)
-# URL_Root_Directory <- "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/Monthly/"
+ URL_Root_Directory <- "/projects/ECEP/CESM_Ensembles/CONUS_Analyses/Monthly/"
 
 
 
@@ -302,3 +302,18 @@ plot(x    = time_months.85,                        # x value
               )
      )
 
+# isolate times for two test decades
+target_time_decade.y2000_to_y2010 <- which( (time_months.45 >= as.Date("2000-01-01")) & (time_months.45 <= as.Date("2010-01-01")), arr.ind=TRUE  )
+target_time_decade.y2070_to_y2080 <- which( (time_months.45 >= as.Date("2070-01-01")) & (time_months.45 <= as.Date("2080-01-01")), arr.ind=TRUE  )
+
+var.45.y2000_to_y2010 <- var.45[target_x, target_y, target_ens, target_time_decade.y2000_to_y2010]
+var.85.y2000_to_y2010 <- var.85[target_x, target_y, target_ens, target_time_decade.y2000_to_y2010]
+
+var.45.y2070_to_y2080 <- var.45[target_x, target_y, target_ens, target_time_decade.y2070_to_y2080]
+var.85.y2070_to_y2080 <- var.85[target_x, target_y, target_ens, target_time_decade.y2070_to_y2080]
+
+decadal_test_dataframe = data.frame(var.45.y2000_to_y2010, var.85.y2000_to_y2010, var.45.y2070_to_y2080,var.85.y2070_to_y2080) 
+
+boxplot(decadal_test_dataframe, 
+        names = c("RCP45-2000's","RCP85-2000's","RCP45-2070's","RCP85-2070's"),
+        ylab = "Mean Monthly Temperatures")
