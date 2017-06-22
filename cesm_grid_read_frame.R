@@ -216,6 +216,7 @@ var1d      = melt(data        = var1d.45,              # your array
                   varnames    = c("Time","Ensemble"),  # names of your two dimensions
                   value.name  = "RCP45")               # the final name of your aray value
 
+var1d$Time = as.Date(var1d$Time, origin="1970-01-01")
 
 # repeat for 8.5 (we'll add those values to previous data frame)
 var1d.85   = melt(data        = var1d.85,              # your array
@@ -225,7 +226,6 @@ var1d.85   = melt(data        = var1d.85,              # your array
 
 var1d$RCP85 = var1d.85$RCP85
 
-var1d$Time = as.Date(var1d$Time, origin="1970-01-01")
 
 
 # clean more things up.
@@ -234,13 +234,11 @@ remove(var1d.85,
        var2d.45,
        var2d.85)
 
-XS <- structable(~Time+Ensemble, data=var1d) 
-
 
 # break down by decade block
-var1d$month   = month(var1d$Time)
-var1d$year   = year(var1d$Time)
-var1d$decade = trunc( var1d$year/10. )*10
+var1d$month  <- month(var1d$Time)
+var1d$year   <- year(var1d$Time)
+var1d$decade <- trunc( var1d$year/10. )*10
 
 # now here is where things get messy because there has to be an easier way to do this
 #  (see if Dr Caudle has any ideas!)
@@ -279,4 +277,9 @@ boxplot(formula = RCP85 ~ decade,
         at = seq(1920,2080,10) +2) #shift position of x axis plot location
 
 
+# repeat for 8.5 (we'll add those values to previous data frame)
+temp       = melt(data        = var1d,              # your array
+                  na.rm       = TRUE,                  # don't use missing values
+                  varnames    = c("RCP45","RCP85"),  # names of your two dimensions
+                  value.name  = "varible")               # the final name of your aray value
 

@@ -1,8 +1,6 @@
 # load libraries
 
 library(ncdf4)
-library(maps)
-library(mapdata)
 library(reshape2)
 library(ggplot2)
 library(lubridate)
@@ -26,7 +24,7 @@ test_period_end   =  as.Date("2059-12-31")
 
 
 # use OPeNDAP root location (comment out if in windows)
-URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/testAll/"
+URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/CESM_CONUS/"
 
 # use Capehart's local location
 URL_Root_Directory <- "/Users/wjc/Desktop/NCAR_Clim/gridded_output/"
@@ -222,12 +220,12 @@ var1d      = melt(data        = var1d.45,              # your array
 var1d.85   = melt(data        = var1d.85,              # your array
                   na.rm       = TRUE,                  # don't use missing values
                   varnames    = c("Time","Ensemble"),  # names of your two dimensions
-                  value.name  = "RCP85")               # the final name of your aray value
+                  value.name  = "RCP85")               # the final name of your aray value\
 
-var1d$RCP85 = var1d.85$RCP85
 
 var1d$Time = as.Date(var1d$Time, origin="1970-01-01")
 
+var1d$RCP85 = var1d.85$RCP85
 
 # clean more things up.
 remove(var1d.85,
@@ -235,7 +233,6 @@ remove(var1d.85,
        var2d.45,
        var2d.85)
 
-XS <- structable(~Time+Ensemble, data=var1d) 
 
 
 # break down by decade block
