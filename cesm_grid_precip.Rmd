@@ -1,0 +1,321 @@
+
+Processing for Precipitation Daily Extremes Using CESM Model Output.
+
+
+Load Required Libraries
+```{r}
+library(ncdf4)
+library(ncdf.tools)
+library(reshape2)
+library(ggplot2)
+library(lubridate)
+library(vcd) 
+```
+
+
+
+Let's start by identifying specific points, days and ensembles from which to pull data. 
+
+It's nice to put this data up top to make changing locatons easier.
+
+```{r}
+target_lon  = -104. # degrees east
+target_lat  =   44. # degrees north
+
+
+control_period_start = as.Date("2000-01-01")
+control_period_end   = as.Date("2009-12-31")
+
+test_period_start =  as.Date("2050-01-01")
+test_period_end   =  as.Date("2059-12-31")
+```
+
+
+
+
+CESM files can be found at
+
+"http://kyrill.ias.sdsmt.edu:8080/thredds/catalog.html"
+
+In this case we are reading in the RCP85 and RCP45 Precipitation Files (hourly) into R directly.
+
+```{r}
+
+URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/CESM_SODAK/"
+
+# Here is the variable we want to extract
+#  these should match the files names since the variable in the file and file name match
+target_variable = "PRECT"
+variable_name   = "Total Daily Precip"
+variable_units  = "mm" # after post processing (starts as m/s)
+
+
+# get URL files
+RCP_85_File  = paste(target_variable,
+                     "_RCP85_SODAK_DAILY_1920-2100.nc4",
+                     sep="")
+
+RCP_45_File  = paste(target_variable,
+                     "_RCP45_SODAK_DAILY_1920-2080.nc4",
+                     sep="")
+
+# make the final URLs for extracting with the "paste" function
+
+URL_85  = paste(URL_Root_Directory,  # string 1 to concatenate
+                RCP_85_File,         # string 2 to concatenate
+                sep=""               # separation character ("" = none)
+               )
+
+URL_45  = paste(URL_Root_Directory,  # string 1 to concatenate
+                RCP_45_File,         # string 2 to concatenate
+                sep=""               # separation character ("" = none)
+               )
+```
+
+We now open the files...
+
+the output of these functions are "handles" by which we can reference the file
+```{r}
+
+nc.85 <- nc_open(filename = URL_85)
+nc.45 <- nc_open(filename = URL_45)
+
+```
+
+To view the inventory (or "metadata") of a netCDF file you can "print()" the metadata
+
+Let's do this with the RCP 8.5 file
+
+
+
+```{r}
+
+print(nc.45)
+
+```
+
+Now for Time Control
+    the RCP 8.5 runs go from 1920-2100 and have 2172 monthly time steps
+    the RCP 4.5 runs go from 1920-2080 and have 1932 monthly time steps
+
+Our data uses a 365-day year (no leap years) so we will doing this brute force.   
+
+We are also only going to 2080.
+
+```{r}
+
+# First get the specifics ranges that we'll need.
+nt = 58765  # Total time steps we'll use
+y1 =  1920  # starting calendar year
+y2 =  2080  # ending calendar year
+nm =    12  # number of months in a year
+nd = c(31,28,31,30,31,30,31,31,30,31,30,31) # days in a month.
+
+# we now create our straw time arrays (which are in standard calendar form)
+
+
+time_days.85 = seq(from   = as.Date("1920-01-01"),  # start value
+                   length = nt,  # end value
+                   by     = "days")
+
+# we now do a hard-rewrite of our time vector one day at a time.
+tt = 1
+for(yy in y1:y2) {
+  for(mm in 1:nm) {
+    for (dd in 1:nd[mm]) {
+      time_days.85[tt]  = as.Date(paste(toString(yy),"-",
+                                        toString(mm),"-",
+                                        toString(dd),
+                                        sep=""))
+      tt = 1 + tt
+    }
+  }
+  print( c(toString(tt-1),toString(nt),toString(as.Date(time_days.85[tt-1]))) )
+}
+
+# mirror the RCP45 time to match the RCP85
+time_days.45 = time_days.85
+time_days    = time_days.85
+
+# and tidy things up
+remove(y1,y2,yy,mm,dd,nd,nm)
+
+```
+
+
+Now for the easier coordinates to access 
+
+```{r}
+# create ensemble dimension
+
+ensemble = seq(from =  1,  # start value
+               to   = 15,  # end value
+               by   =  1   # increment
+               )
+
+# import spatial coordinates
+
+lon = ncvar_get(nc    = nc.85, # netcdf file ID
+                varid = "lon"  # variable name from file
+                )
+
+lon = lon - 360.0  # converting to +/- deg east for easier plotting
+
+lat = ncvar_get(nc    = nc.85,  # netcdf file ID
+                varid = "lat"  # variable name from file
+                )
+
+```
+
+
+With time, latitude and longitude in hand, we can now extract the specific points in our files to extract for x, y and t
+
+```{r}
+# we now get the target x and y locations
+target_x <- which.min( abs(         lon -  target_lon) )
+target_y <- which.min( abs(         lat -  target_lat) )
+
+```
+
+We now import the full data fields (first RCP 4.5...
+
+```{r}
+var2d.45 = ncvar_get(nc      = nc.45,             # netcdf file ID
+                     varid   = target_variable,   # variable name from file
+                     verbose = TRUE,              # print diagnostic data
+                     start   = c( 1,  1,  1,  1), # starting coordinates
+                     count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
+                     ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
+
+```
+
+... and secondly RCP 8.5)
+
+```{r}
+
+var2d.85 = ncvar_get(nc      = nc.85,             # netcdf file ID
+                     varid   = target_variable,   # variable name from file
+                     verbose = TRUE,              # print diagnostic data
+                     start   = c( 1,  1,  1,  1), # starting coordinates
+                     count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
+                     ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
+```
+
+Assign dimension names to arrays.  these are strings including things that shoudl be numbers.
+
+```{r}
+
+dimnames(var2d.45) <- list(lon,lat,ensemble,time_days)
+dimnames(var2d.85) <- list(lon,lat,ensemble,time_days)
+
+```
+
+And we tidy things up once again
+
+```{r}
+
+remove(time_bounds.45, 
+       time_days.45, 
+       time_days.85,
+       RCP_45_File,
+       RCP_85_File,
+       URL_45,
+       URL_85,
+       URL_Root_Directory,
+       nc.45, 
+       nc.85)
+
+```
+
+
+Now we can work at the time series level.
+
+We first extract single point time series, these we can convert these into a table.
+
+Note that we will need to "transpose" our resulting array so it goes "down" in a table... 
+
+```{r}
+
+var1d.45 = t(var2d.45[target_x, target_y, , ]) # t() == transpose
+var1d.85 = t(var2d.85[target_x, target_y, , ]) # t() == transpose
+
+```
+
+
+Add corrdinates
+
+```{r}
+
+dimnames(var1d.45) <- list(as.Date(time_days), ensemble)
+dimnames(var1d.85) <- list(as.Date(time_days), ensemble)
+
+```
+
+Now we flatten all of our fields into a single list or data frame by "flattening" the 2-D time/ensemble aray to a single list with the melt command
+
+```{r}
+
+precip = melt(data        = var1d.45,              # your array
+              na.rm       = TRUE,                  # don't use missing values
+              varnames    = c("Time","Ensemble"),  # names of your two dimensions
+              value.name  = "RCP45")               # the final name of your aray value
+
+```
+
+Repeat for 8.5 (we'll add those values to previous data frame)
+
+```{r}
+
+var1d.85 = melt(data        = var1d.85,              # your array
+                na.rm       = TRUE,                  # don't use missing values
+                varnames    = c("Time","Ensemble"),  # names of your two dimensions
+                value.name  = "RCP85")               # the final name of your aray value
+
+```
+
+
+Add we add time... and pull our RCP8.5 into our RCP4.5 set.
+
+```{r}
+
+precip$Time = as.Date(precip$Time, origin="1970-01-01")
+
+precip$RCP85 = var1d.85$RCP85
+```
+
+We can also add some utility vectors to break things down by month, year and decade
+
+```{r}
+precip$month   = month(precip$Time)
+precip$year   = year(precip$Time)
+precip$decade = trunc( precip$year/10. )*10
+
+```
+
+And tidy it all up yet again.
+
+```{r}
+
+remove(var1d.85,
+       var1d.45,
+       var2d.45,
+       var2d.85,
+       lon,
+       lat,
+       target_lat,
+       target_lon,
+       target_variable,
+       target_x,
+       target_y)
+
+```
+
+Finally, we need to floor our precip data to floor our precip data to a non-trace being equal to 0.005 in (0.127 mm) or greater.
+
+```{r}
+
+precip$RCP45[ precip$RCP45 < 0.127 ] <- 0
+precip$RCP85[ precip$RCP85 < 0.127 ] <- 0
+
+
+```

@@ -27,7 +27,7 @@ test_period_end   =  as.Date("2059-12-31")
 URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/CESM_CONUS/"
 
 # use Capehart's local location
-URL_Root_Directory <- "/Users/wjc/Desktop/NCAR_Clim/gridded_output/"
+#URL_Root_Directory <- "/Users/wjc/Desktop/NCAR_Clim/gridded_output/"
 
 # use Gettinger's local location
 # URL_Root_Directory <- "C:/Users/7446253/Documents/"
@@ -37,9 +37,9 @@ URL_Root_Directory <- "/Users/wjc/Desktop/NCAR_Clim/gridded_output/"
 
 # Here is the variable we want to extract
 #  these should match the files names since the variable in the file and file name match
-target_variable = "TSA"
-variable_name   = "Monthly Mean 2-m Air Temperature"
-variable_units  = "deg F"
+target_variable = "TREFHTMN"
+variable_name   = "Monthly Max 2-m Air Temperature"
+variable_units  = "K"
 
 
 # get URL files
@@ -101,13 +101,8 @@ time_months = time_months.45
 #   this is a 2 x NT array
 
 
-time_bounds.45 <- ncvar_get(nc    = nc.45,         # netcdf file ID
-                            varid = "time_bounds"  # variable name from file
-                           )
-
 # we can quickly get the number of days per month,  We're using an array function for this
 
-days_per_month <- time_bounds.45[2, ] - time_bounds.45[1, ]
 
 # create ensemble dimension
 
@@ -171,8 +166,7 @@ dimnames(var2d.85) <- list(lon,lat,ensemble,time_months)
 
 # tidy things up
 
-remove(time_bounds.45, 
-       time_months.45, 
+remove(time_months.45, 
        time_months.85,
        RCP_45_File,
        RCP_85_File,
@@ -284,8 +278,14 @@ t_test_cntl_2_rcp85 = t.test(x          = test2_rcp85_decade_values,
                              alternative = c("two.sided"),
                              conf.level = 0.95)
 
+t_test_cntl_1_rcp45 = t.test(x          = test1_rcp45_decade_values,
+                             y          = control_decade_values,
+                             alternative = c("greater"),
+                             conf.level = 0.95)
 
-t_test_cntl_2_rcp85 = t.test(x          = test2_rcp85_decade_values,
+
+
+t_test_cntl_2_rcp45 = t.test(x          = test2_rcp45_decade_values,
                              y          = control_decade_values,
                              alternative = c("two.sided"),
                              conf.level = 0.95)

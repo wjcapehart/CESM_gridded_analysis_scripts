@@ -284,8 +284,14 @@ t_test_cntl_2_rcp85 = t.test(x          = test2_rcp85_decade_values,
                              alternative = c("two.sided"),
                              conf.level = 0.95)
 
+t_test_cntl_1_rcp45 = t.test(x          = test1_rcp45_decade_values,
+                             y          = control_decade_values,
+                             alternative = c("greater"),
+                             conf.level = 0.95)
 
-t_test_cntl_2_rcp85 = t.test(x          = test2_rcp85_decade_values,
+
+
+t_test_cntl_2_rcp45 = t.test(x          = test2_rcp45_decade_values,
                              y          = control_decade_values,
                              alternative = c("two.sided"),
                              conf.level = 0.95)

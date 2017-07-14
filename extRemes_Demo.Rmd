@@ -1,0 +1,160 @@
+---
+title: "R Notebook to play with the extRemes package"
+output: html_notebook
+---
+
+This is a demonstration of the extRemes Package.
+
+First we call the library(s) we'll want to use
+
+```{r}
+library("extRemes")
+```
+
+Now we can imoport one of the generic test data packsts.  This is the Port Jervis, New York data set
+
+The metadata can be found by querying PORTw in the help.  
+
+Format
+
+A data frame with 68 observations on the following 16 variables.
+
+Year
+a numeric vector giving the year.
+
+MTMAX
+a numeric vector giving the mean winter maximum temperatures (degrees centigrade).
+
+MTMIN
+a numeric vector giving the mean winter minimum temperatures (degrees centigrade).
+
+STDTMAX
+a numeric vector giving the standard deviations of maximum winter temperatures (degrees centigrade).
+
+STDMIN
+a numeric vector giving the standard deviations of minimum winter temperatures (degrees centigrade).
+
+TMX1
+a numeric vector giving the maximum winter temperature (degrees centigrade).
+
+TMN0
+a numeric vector giving the minimum winter temperature (degrees centigrade).
+
+MDTR
+a numeric vector giving the mean winter diurnal temperature range (degrees centigrade).
+
+AOindex
+a numeric vector giving the Atlantic Oscillation index (see Thompson and Wallace (1998)).
+
+
+Looking at the rest of the exercise, my guess is that the first column is automatically considered to be a time dimension. 
+
+In this case it's years.
+
+
+```{r}
+data("PORTw", package = "extRemes")
+
+print(PORTw)
+```
+
+
+We probably will want to work with daily data here to target specific extreme events.
+
+
+But for now we will plot the data for the Min Winter Temperature Extreme.  (TMN0)
+
+```{r}
+
+plot(x       = PORTw$Year,
+     y       = PORTw$TMN0, 
+     type    = "l", 
+     col     = "darkblue", 
+     lwd     = 1.5, 
+     cex.lab = 1.25,
+     xlab    = "Year", 
+     ylab    = "Annual Maximum winter temperature (deg C)",
+     main    = "Port Jarvis, NY")
+
+hist(x       = PORTw$TMN0,
+     xlab    = "Annual Maximum winter temperature (deg C)",
+     main    = "Port Jarvis, NY")
+
+```
+
+
+From here, we can move to looking at extreme events.
+
+Now we are going to use one of the extRemes functions: fevd.  
+
+Fit An Extreme Value Distribution (EVD) to Data
+
+Description
+
+Fit a univariate extreme value distribution functions (e.g., GEV, GP, PP, Gumbel, or Exponential) to data; possibly with covariates in the parameters.
+
+The GEV is the default distribution to use.
+
+```{r}
+
+fit1 <- fevd(x          = TMN0, 
+             data       = PORTw, 
+             units      = "deg C",  # this seems to be the units if the original data
+             time.units = "years",
+             type       = "GEV",
+             verbose    = TRUE
+             )
+
+
+```
+
+Plotting fit will make four graphs.
+
+```{r}
+
+plot(fit1)
+
+```
+
+Close inspection shows that we have a problem for miniumum extremes with this method.  These are *exceednces* not going below such values. 
+
+In plain english the above graph is for the return period for where the minimum temeperature only goes down to that given value.  This acutally WOULD be relevant to us if we were trying to guess the number of years without killing frosts.   
+
+According to the documentation we should put a minus sign in front of the output.  For tempratures which cross the mythical 0 threshold (0 degF or 0 degC) this is problematic.  We will likey need to redo this with the temperature in Kelvin.
+
+So let's do that.  
+
+We will convert the DegC MinT into a new variable for Kelvins.  Or invert the scales and be bad use deg F. 
+
+```{r}
+
+PORTw$TMN0_K = PORTw$TMN0 + 273.15
+
+PORTw$TMN0_F = PORTw$TMN0 * 1.8 + 32
+
+```
+
+And we'll then repeat this with a minus sign in front of everything!
+
+```{r}
+
+fit2 <- fevd(x          = -(TMN0_F)~1, 
+             data       = PORTw, 
+             units      = "neg-deg F",  # this seems to be the units if the original data
+             time.units = "years",
+             type       = "GEV",
+             verbose    = TRUE
+             )
+
+```
+
+And we can replot
+
+
+Plotting fit will make four graphs.
+
+```{r}
+
+plot(fit2)
+
+```
