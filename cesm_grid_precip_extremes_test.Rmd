@@ -4,12 +4,10 @@ Processing for Precipitation Daily Extremes Using CESM Model Output.
 
 Load Required Libraries
 ```{r}
-library(ncdf4)
-library(ncdf.tools)
-library(reshape2)
-library(ggplot2)
-library(lubridate)
-library(vcd) 
+library(ncdf4)     # processing netCDF data
+library(lubridate) # processing dates and time
+library(reshape2)  # manipulating data frames
+library(extRemes)  # extreme data analysis
 ```
 
 
@@ -21,13 +19,14 @@ It's nice to put this data up top to make changing locatons easier.
 ```{r}
 target_lon  = -104. # degrees east
 target_lat  =   44. # degrees north
+```
 
+And while I am up here I am defining a "wetting rain" even threshold as any rain event exceeding 0.1" per day
 
-control_period_start = as.Date("2000-01-01")
-control_period_end   = as.Date("2009-12-31")
+```{r}
 
-test_period_start =  as.Date("2050-01-01")
-test_period_end   =  as.Date("2059-12-31")
+wetting_rain_treshold = 0.1 * 25.4 # in -> mm (0.1 in = 2.54 )
+
 ```
 
 
@@ -87,7 +86,6 @@ To view the inventory (or "metadata") of a netCDF file you can "print()" the met
 Let's do this with the RCP 8.5 file
 
 
-
 ```{r}
 
 print(nc.45)
@@ -119,19 +117,28 @@ time_days.85 = seq(from   = as.Date("1920-01-01"),  # start value
                    by     = "days")
 
 # we now do a hard-rewrite of our time vector one day at a time.
-tt = 1
+tt1 = 1
 for(yy in y1:y2) {
   for(mm in 1:nm) {
-    for (dd in 1:nd[mm]) {
-      time_days.85[tt]  = as.Date(paste(toString(yy),"-",
-                                        toString(mm),"-",
-                                        toString(dd),
-                                        sep=""))
-      tt = 1 + tt
-    }
+    tt2 = tt1+nd[mm]-1
+    time_days.85[tt1:tt2] = seq.Date(from = as.Date(paste(toString(yy),"-",
+                                                          toString(mm),"-",
+                                                          "01",
+                                                          sep="")),
+                                     to   = as.Date(paste(toString(yy),    "-",
+                                                          toString(mm),    "-",
+                                                          toString(nd[mm]),
+                                                          sep="")),
+                                     by   = "day")
+      tt1 = tt2+1
   }
-  print( c(toString(tt-1),toString(nt),toString(as.Date(time_days.85[tt-1]))) )
+  # print( c(toString(tt1-1),
+  #          toString(nt),
+  #          toString(as.Date(time_days.85[tt1-1]))
+  #          )
+  #      )
 }
+print(paste("final day",time_days.85[nt]))
 
 # mirror the RCP45 time to match the RCP85
 time_days.45 = time_days.85
@@ -177,25 +184,28 @@ target_y <- which.min( abs(         lat -  target_lat) )
 
 ```
 
-We now import the full data fields (first RCP 4.5...
+We now import the full data fields.  Be aware this can take a while and this code does not work on Windows machines if the data file isn't kept locally.
+
+First we pull the RCP 4.5 scenario...
 
 ```{r}
 var2d.45 = ncvar_get(nc      = nc.45,             # netcdf file ID
                      varid   = target_variable,   # variable name from file
-                     verbose = TRUE,              # print diagnostic data
+                     verbose = FALSE,              # print diagnostic data
                      start   = c( 1,  1,  1,  1), # starting coordinates
                      count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
                      ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
 
 ```
 
-... and secondly RCP 8.5)
+... Then we pull the RCP 8.5 scenario...
+
 
 ```{r}
 
 var2d.85 = ncvar_get(nc      = nc.85,             # netcdf file ID
                      varid   = target_variable,   # variable name from file
-                     verbose = TRUE,              # print diagnostic data
+                     verbose = FALSE,             # print diagnostic data
                      start   = c( 1,  1,  1,  1), # starting coordinates
                      count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
                      ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
@@ -319,3 +329,85 @@ precip$RCP85[ precip$RCP85 < 0.127 ] <- 0
 
 
 ```
+
+It's not a bad idea to review the content of your data frame... 
+
+```{r}
+str(precip)
+
+```
+
+Now we're ready to do the analysis part.
+
+we can break down the procedure to
+
+1) par down the data vector by time period and ensemble number.
+2) run and save our stats.
+
+Here is a working sample template to get things started.
+
+First we start extract our subset.
+
+```{r}
+
+# isolate time period and ensemble
+
+ens_target      = 1                 # ensemble number.
+year_start      = 1980              # start year
+year_end        = year_start + 30-1 # end year
+
+subset = subset(precip,  (Ensemble==ens_target)  &
+                        ((year>=year_start) & (year<=year_end)   )    
+                )
+
+# always nice to see what your data looks like.
+
+hist(x      = subset$RCP45[subset$RCP45>0], # omitting zero precip days
+     xlab   = "Non-Zero Daily Precip (mm)",
+     main   = "RCP4.5 Ensemble Member 1",
+     freq   = TRUE,
+     breaks = 100
+     )
+
+```
+
+Now we run the fit command.
+
+```{r}
+
+fit_GP  = fevd(x          = RCP45, 
+               data       = subset, 
+               units      = "mm",
+               time.units = "days",
+               threshold  = 2.0,
+               type       = "GP",
+               verbose    = TRUE
+               )
+
+
+
+```
+
+And we plot the results.
+
+```{r}
+plot(fit_GP)
+```
+
+Things, still to do: 
+
+For maximium storm events 
+
+1) Loop through each ensemble, each time collecting the return amounts for a 1-, 2-, 5-, 10-, 15-, 20-yr event
+
+2) compile them to get the average 1-, 2-, 5-, 10-, 15-, 20- return period and the variance of each.
+
+Do this for both the RCP 4.5 and 8.5
+
+a) the example's "reference" 30-y period (1980-2009)
+b) 2010-2039
+c) 2020-2049
+
+Repeat for minimum events (specificaly changes in days between wetting rain events.)
+
+
