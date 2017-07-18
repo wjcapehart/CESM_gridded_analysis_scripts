@@ -5,8 +5,10 @@ output:
   html_notebook: default
 ---
 
+
 Processing for Precipitation Daily Extremes Using CESM Model Output.
 
+Warning Typos are Legion.
 
 Load Required Libraries
 ```{r}
@@ -25,6 +27,8 @@ It's nice to put this data up top to make changing locatons easier.
 ```{r}
 target_lon  = -104. # degrees east
 target_lat  =   44. # degrees north
+
+n_ensembles = 15
 ```
 
 And while I am up here I am defining a "wetting rain" even threshold as any rain event exceeding 0.1" per day
@@ -161,9 +165,9 @@ Now for the easier coordinates to access
 ```{r}
 # create ensemble dimension
 
-ensemble = seq(from =  1,  # start value
-               to   = 15,  # end value
-               by   =  1   # increment
+ensemble = seq(from =           1,  # start value
+               to   = n_ensembles,  # end value
+               by   =           1   # increment
                )
 
 # import spatial coordinates
@@ -195,12 +199,12 @@ We now import the full data fields.  Be aware this can take a while and this cod
 First we pull the RCP 4.5 scenario...
 
 ```{r}
-var2d.45 = ncvar_get(nc      = nc.45,             # netcdf file ID
-                     varid   = target_variable,   # variable name from file
-                     verbose = FALSE,              # print diagnostic data
-                     start   = c( 1,  1,  1,  1), # starting coordinates
-                     count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
-                     ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
+var2d.45 = ncvar_get(nc      = nc.45,                      # netcdf file ID
+                     varid   = target_variable,            # variable name from file
+                     verbose = FALSE,                      # print diagnostic data
+                     start   = c( 1,  1,           1,  1), # starting coordinates
+                     count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
+                     ) * 86400. * 1000.0                   # scaling precip from m/s to mm/dy
 
 ```
 
@@ -209,12 +213,12 @@ var2d.45 = ncvar_get(nc      = nc.45,             # netcdf file ID
 
 ```{r}
 
-var2d.85 = ncvar_get(nc      = nc.85,             # netcdf file ID
-                     varid   = target_variable,   # variable name from file
-                     verbose = FALSE,             # print diagnostic data
-                     start   = c( 1,  1,  1,  1), # starting coordinates
-                     count   = c(10,  7, 15, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
-                     ) * 86400. * 1000.0          # scaling precip from m/s to mm/dy
+var2d.85 = ncvar_get(nc      = nc.85,                      # netcdf file ID
+                     varid   = target_variable,            # variable name from file
+                     verbose = FALSE,                      # print diagnostic data
+                     start   = c( 1,  1,  1,  1),          # starting coordinates
+                     count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
+                     ) * 86400. * 1000.0                   # scaling precip from m/s to mm/dy
 ```
 
 Assign dimension names to arrays.  these are strings including things that shoudl be numbers.
@@ -359,11 +363,11 @@ First we start extract our subset.
 # isolate time period and ensemble
 
 ens_target      = 1                 # ensemble number.
-year_start      = 1980              # start year
-year_end        = year_start + 30-1 # end year
+base_start      = 1980              # start year
+base_end        = base_start + 30-1 # end year
 
 subset = subset(precip,  (Ensemble==ens_target)  &
-                        ((year>=year_start) & (year<=year_end)   )    
+                        ((year>=base_start) & (year<=base_end)   )    
                 )
 
 # always nice to see what your data looks like.
@@ -379,7 +383,16 @@ hist(x      = subset$RCP45[subset$RCP45>0], # omitting zero precip days
 
 Now we run the fit command.
 
+We will need a minimum threshold or the method fails.
+
+Chose a reasonable value,  here we chose 2mm (0.08")
+
+For reference, a wetting rain event is 0.1" or 2.54 mm
+
+We are also using the Generalized Pareto method.
+
 ```{r}
+
 
 fit_GP  = fevd(x          = RCP45, 
                data       = subset, 
@@ -392,21 +405,146 @@ fit_GP  = fevd(x          = RCP45,
 
 
 
+
 ```
 
-And we plot the results.
+And we plot the results.  You would prefer for the lines to rest on the "1:1" through a reasonable period.  For a 30 year span, I'll consider 15 return yers to be acceptable.
 
 ```{r}
 plot(fit_GP)
 ```
 
-Things, still to do: 
+We can also extract specific return events.
 
-For maximium storm events 
 
-1) Loop through each ensemble, each time collecting the return amounts for a 1-, 2-, 5-, 10-, 15-, 20-yr event
+```{r}
 
-2) compile them to get the average 1-, 2-, 5-, 10-, 15-, 20- return period and the variance of each.
+return_intervals = seq(from =  2,
+                       to   = 20,
+                       by   =  1)
+
+
+n_return_intervals = length(return_intervals) 
+
+return_GP = return.level(x             = fit_GP,
+                         return.period = return_intervals,
+                         do.ci         = TRUE)
+
+```
+
+To implement.  Let's make an array.  We will copy this over and over.
+
+```{r}
+
+
+rcp45_base_period_return  = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+rcp45_base_period_ci_ub   = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+rcp45_base_period_ci_lb   = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+
+
+rcp85_base_period_return  = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+rcp85_base_period_ci_ub   = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+rcp85_base_period_ci_lb   = array(0,c(n_ensembles,
+                                    n_return_intervals))
+
+
+```
+
+create a loop that goes between the ensembles.
+
+```{r}
+
+base_start      = 1980              # start year
+base_end        = base_start + 30-1 # end year
+
+
+for (ens_target in 1:n_ensembles) {
+  
+  # create segments for RCP 45 and RCP 85 for your period(s)
+  
+ 
+   subset_base = subset(precip,  (Ensemble==ens_target)  &
+                                 ((year>=base_start) & (year<=base_end)   )
+                        )
+ 
+
+   fit_GP_45_base = fevd(x          = RCP45,
+                         data       = subset_base,
+                         units      = "mm",
+                         time.units = "days",
+                         threshold  = 2.0,
+                         type       = "GP",
+                         verbose    = FALSE
+                         )
+
+      fit_GP_85_base = fevd(x      = RCP85,
+                         data       = subset_base,
+                         units      = "mm",
+                         time.units = "days",
+                         threshold  = 2.0,
+                         type       = "GP",
+                         verbose    = FALSE
+                         )
+
+
+      return_GP = return.level(x             = fit_GP_45_base,
+                         return.period = return_intervals,
+                         do.ci         = TRUE)
+      
+      rcp45_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
+      rcp45_base_period_return[ens_target, ] = return_GP[ , 2]
+      rcp45_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+
+      
+      return_GP = return.level(x             = fit_GP_85_base,
+                         return.period = return_intervals,
+                         do.ci         = TRUE)
+      
+
+            
+      rcp85_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
+      rcp85_base_period_return[ens_target, ] = return_GP[ , 2]
+      rcp85_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+
+}
+
+```
+
+Plot return output
+```{r}
+plot(x = return_intervals,
+     y = rcp85_base_period_return[1,], col='red')
+lines(x = return_intervals,
+     y = rcp85_base_period_ci_lb[1,], col='red')
+lines(x = return_intervals,
+     y = rcp85_base_period_ci_ub[1,], col='red')
+
+points(x = return_intervals,
+     y = rcp45_base_period_return[1,], col='blue')
+
+lines(x = return_intervals,
+     y = rcp45_base_period_ci_lb[1,], col='blue')
+
+lines(x = return_intervals,
+     y = rcp45_base_period_ci_ub[1,], col='blue')
+
+```
+
 
 Do this for both the RCP 4.5 and 8.5
 
