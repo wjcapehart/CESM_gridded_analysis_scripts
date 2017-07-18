@@ -16,6 +16,7 @@ library(ncdf4)     # processing netCDF data
 library(lubridate) # processing dates and time
 library(reshape2)  # manipulating data frames
 library(extRemes)  # extreme data analysis
+library(beanplot)  # trying to use the beanplot routine since box whiskers gave me some heartburn
 ```
 
 
@@ -234,8 +235,7 @@ And we tidy things up once again
 
 ```{r}
 
-remove(time_bounds.45, 
-       time_days.45, 
+remove(time_days.45, 
        time_days.85,
        RCP_45_File,
        RCP_85_File,
@@ -363,11 +363,13 @@ First we start extract our subset.
 # isolate time period and ensemble
 
 ens_target      = 1                 # ensemble number.
-base_start      = 1980              # start year
+base_start      = 1980  - 5            # start year
 base_end        = base_start + 30-1 # end year
 
-subset = subset(precip,  (Ensemble==ens_target)  &
-                        ((year>=base_start) & (year<=base_end)   )    
+subset = subset(precip,  
+                (Ensemble==ens_target)  &
+                ((year>=base_start) & 
+                 (year<=base_end)   )    
                 )
 
 # always nice to see what your data looks like.
@@ -430,37 +432,56 @@ return_GP = return.level(x             = fit_GP,
                          return.period = return_intervals,
                          do.ci         = TRUE)
 
+print(return_GP)
+
+# tidy up the demo
+
+remove(return_GP,
+       fit_GP,
+       subset)
+
 ```
 
-To implement.  Let's make an array.  We will copy this over and over.
+To implement. Let's create the storage arrays  We will copy this over and over.
 
 ```{r}
 
+# start with the return intervals.
 
-rcp45_base_period_return  = array(0,c(n_ensembles,
-                                    n_return_intervals))
-
-
-rcp45_base_period_ci_ub   = array(0,c(n_ensembles,
-                                    n_return_intervals))
+return_intervals = seq(from =  2,
+                       to   = 20,
+                       by   =  1)
 
 
-rcp45_base_period_ci_lb   = array(0,c(n_ensembles,
-                                    n_return_intervals))
+n_return_intervals = length(return_intervals) 
+
+# for each case/period create arrays for the return and CI bounds
+
+rcp45_base_period_return  = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
+
+rcp45_base_period_ci_ub   = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
+
+rcp45_base_period_ci_lb   = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
 
 
 
+rcp85_base_period_return  = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
 
-rcp85_base_period_return  = array(0,c(n_ensembles,
-                                    n_return_intervals))
+rcp85_base_period_ci_ub   = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
 
-
-rcp85_base_period_ci_ub   = array(0,c(n_ensembles,
-                                    n_return_intervals))
-
-
-rcp85_base_period_ci_lb   = array(0,c(n_ensembles,
-                                    n_return_intervals))
+rcp85_base_period_ci_lb   = array(data= 0,
+                                  dim = c(n_ensembles,
+                                          n_return_intervals))
 
 
 ```
@@ -469,82 +490,258 @@ create a loop that goes between the ensembles.
 
 ```{r}
 
-base_start      = 1980              # start year
+base_start      = 1980 - 5             # start year
 base_end        = base_start + 30-1 # end year
 
 
 for (ens_target in 1:n_ensembles) {
   
+  ######################################
+  #
+  # Base Period
+  #
+  
   # create segments for RCP 45 and RCP 85 for your period(s)
   
- 
-   subset_base = subset(precip,  (Ensemble==ens_target)  &
-                                 ((year>=base_start) & (year<=base_end)   )
-                        )
- 
+  subset = subset(precip,
+                  (Ensemble==ens_target)  &
+                  ((year>=base_start) & 
+                     (year<=base_end)   )
+                       )
+  
+  # fit an extreme value dist to the data
+  
+  fit_GP_45 = fevd(x          = RCP45,
+                   data       = subset,
+                   units      = "mm",
+                   time.units = "days",
+                   threshold  = 2.0,
+                   type       = "GP",
+                   verbose    = FALSE
+                   )
+  
+  fit_GP_85 = fevd(x          = RCP85,
+                   data       = subset,
+                   units      = "mm",
+                   time.units = "days",
+                   threshold  = 2.0,
+                   type       = "GP",
+                   verbose    = FALSE
+                   )
+  
+  # calculate the return periods and load into the temporary storage arrays.
+  
+  return_GP = return.level(x             = fit_GP_45,
+                           return.period = return_intervals,
+                           do.ci         = TRUE)
+  
+  rcp45_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
+  rcp45_base_period_return[ens_target, ] = return_GP[ , 2]
+  rcp45_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
 
-   fit_GP_45_base = fevd(x          = RCP45,
-                         data       = subset_base,
-                         units      = "mm",
-                         time.units = "days",
-                         threshold  = 2.0,
-                         type       = "GP",
-                         verbose    = FALSE
-                         )
+  
+  return_GP = return.level(x             = fit_GP_85,
+                           return.period = return_intervals,
+                           do.ci         = TRUE)
+   
+  rcp85_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
+  rcp85_base_period_return[ens_target, ] = return_GP[ , 2]
+  rcp85_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+  
+  # tidy up
+  
+  remove(subset,
+         fit_GP_45,
+         fit_GP_85,
+         return_GP)
 
-      fit_GP_85_base = fevd(x      = RCP85,
-                         data       = subset_base,
-                         units      = "mm",
-                         time.units = "days",
-                         threshold  = 2.0,
-                         type       = "GP",
-                         verbose    = FALSE
-                         )
+  #
+  ######################################
 
-
-      return_GP = return.level(x             = fit_GP_45_base,
-                         return.period = return_intervals,
-                         do.ci         = TRUE)
-      
-      rcp45_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-      rcp45_base_period_return[ens_target, ] = return_GP[ , 2]
-      rcp45_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
-
-      
-      return_GP = return.level(x             = fit_GP_85_base,
-                         return.period = return_intervals,
-                         do.ci         = TRUE)
-      
-
-            
-      rcp85_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-      rcp85_base_period_return[ens_target, ] = return_GP[ , 2]
-      rcp85_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
-
+  
+  
 }
 
 ```
 
-Plot return output
+Convert output into neat and tidy data frames
+
 ```{r}
-plot(x = return_intervals,
-     y = rcp85_base_period_return[1,], col='red')
-lines(x = return_intervals,
-     y = rcp85_base_period_ci_lb[1,], col='red')
-lines(x = return_intervals,
-     y = rcp85_base_period_ci_ub[1,], col='red')
 
-points(x = return_intervals,
-     y = rcp45_base_period_return[1,], col='blue')
+# part 1) assign dimension names
 
-lines(x = return_intervals,
-     y = rcp45_base_period_ci_lb[1,], col='blue')
+dimnames(rcp45_base_period_ci_lb)  <- list(ensemble, return_intervals)
+dimnames(rcp45_base_period_return) <- list(ensemble, return_intervals)
+dimnames(rcp45_base_period_ci_ub)  <- list(ensemble, return_intervals)
 
-lines(x = return_intervals,
-     y = rcp45_base_period_ci_ub[1,], col='blue')
+
+dimnames(rcp85_base_period_ci_lb)  <- list(ensemble, return_intervals)
+dimnames(rcp85_base_period_return) <- list(ensemble, return_intervals)
+dimnames(rcp85_base_period_ci_ub)  <- list(ensemble, return_intervals)
+
+
+# melt 2-d arrays into frames.
+
+
+rcp45_base   = melt(data       = rcp45_base_period_return,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Return_Period")
+
+rcp45_cib_lb = melt(data       = rcp45_base_period_ci_lb,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Lower_95_CI")
+
+rcp45_cib_ub = melt(data       = rcp45_base_period_ci_ub,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Upper_95_CI")
+
+
+
+
+rcp85_base   = melt(data       = rcp85_base_period_return,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Return_Period")
+
+rcp85_cib_lb = melt(data       = rcp85_base_period_ci_lb,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Lower_95_CI")
+
+rcp85_cib_ub = melt(data       = rcp85_base_period_ci_ub,
+                    varnames   = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Upper_95_CI")
+
+
+
+# combine the fields into a single data frame for each one.
+
+rcp45_base$Lower_95_CI = rcp45_cib_lb$Lower_95_CI
+rcp45_base$Upper_95_CI = rcp45_cib_ub$Upper_95_CI
+
+rcp85_base$Lower_95_CI = rcp85_cib_lb$Lower_95_CI
+rcp85_base$Upper_95_CI = rcp85_cib_ub$Upper_95_CI
+
+
+# tidy up
+
+remove(rcp85_base_period_ci_lb,
+       rcp85_base_period_return,
+       rcp85_base_period_ci_ub,
+       rcp85_cib_lb,
+       rcp85_cib_ub)
+
+remove(rcp45_base_period_ci_lb,
+       rcp45_base_period_return,
+       rcp45_base_period_ci_ub,
+       rcp45_cib_lb,
+       rcp45_cib_ub)
+
 
 ```
 
+
+Plot return output
+
+```{r}
+
+darkcyan = rgb(red   = 0.00,
+               green = 0.50,
+               blue  = 0.50, 
+               alpha = 0.50)
+
+cyan     = rgb(red   = 0.00,
+               green = 1.00,
+               blue  = 1.00, 
+               alpha = 0.50)
+
+darkblue = rgb(red   = 0.00,
+               green = 0.00,
+               blue  = 0.50, 
+               alpha = 0.50)
+
+blue     = rgb(red   = 0.00,
+               green = 0.00,
+               blue  = 1.00, 
+               alpha = 0.50)
+
+
+darkmag  = rgb(red   = 0.50,
+               green = 0.00,
+               blue  = 0.50, 
+               alpha = 0.50)
+
+mag      = rgb(red   = 1.00,
+               green = 0.00,
+               blue  = 1.00, 
+               alpha = 0.50)
+
+
+darkred  = rgb(red   = 0.50,
+               green = 0.00,
+               blue  = 0.00, 
+               alpha = 0.50)
+
+red      = rgb(red   = 1.00,
+               green = 0.00,
+               blue  = 0.00, 
+               alpha = 0.50)
+
+beanplot(formula   = Return_Period~return_intervals,
+         data      = rcp85_base,
+         col       = red,
+         main      = paste("Return Intervals for ",
+                           base_start,
+                          "-",
+                          base_end,
+                          sep=""),
+         xlab      = "Return Period (Years)",
+         ylab      = paste(variable_name, 
+                           " (",
+                           variable_units,
+                           ")",
+                           sep=""),
+         ylog       = "n",
+         xlim      = c(0,20),
+         ylim      = c(min(rcp45_base$Lower_95_CI,
+                           rcp85_base$Lower_95_CI),
+                       max(rcp45_base$Upper_95_CI,
+                           rcp85_base$Upper_95_CI)
+                      )
+        )
+        
+        
+
+
+beanplot(formula   = Return_Period~return_intervals,
+        data      = rcp45_base,
+        add       = TRUE,
+        col       = blue,
+        medcol    = darkblue,
+        whiskcol  = darkblue,
+        staplecol = darkblue,
+        outcol    = darkblue,
+        outbg     = darkblue,
+        outcex    = darkblue,
+        border    = darkblue,  
+        whisklty  = 1, 
+        outpch    = "."
+        )    
+
+
+
+
+
+```
+
+
+Trying something new.  This is a bag plot.
+
+It draws a ring around the data cloud (as in the one above) enclosing 50% of the da
 
 Do this for both the RCP 4.5 and 8.5
 
