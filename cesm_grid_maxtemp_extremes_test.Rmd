@@ -1,12 +1,15 @@
 ---
-title: "R extRemes Test with CESM data and some horesplay with ensembles"
+title: R extRemes Test with CESM data and some horesplay with ensembles (Max Daily
+  Temps)
 output:
   html_document: default
   html_notebook: default
 ---
 
 
-Processing for Precipitation Daily Extremes Using CESM Model Output.
+Processing for Max Temperature Daily Extremes Using CESM Model Output.
+
+Temperature is tricky since we will be using a Generalized Pareto to target the extreme values and that also requires a threshold to which the method is sensitive.  Temperature complicates this since we are looking at a goodly amount of non-stationarity as we move into the future.
 
 Warning Typos are Legion.
 
@@ -28,7 +31,6 @@ It's nice to put this data up top to make changing locatons easier.
 ```{r}
 
 location_name = "Rapid City"
-period_span   = 30.
 
 target_lon  = -104. # degrees east
 target_lat  =   44. # degrees north
@@ -39,12 +41,12 @@ n_ensembles = 15
 And we should include our time periods.  Here, we have a baseline period and a future period
 
 ```{r}
-
+period_span     = 30.
 base_start      = 1976              # start year
-base_end        = base_start + 30-1 # end year  (just before our simulations diverge)
+base_end        = base_start + period_span-1 # end year  (just before our simulations diverge)
 
 per1_start      = 2050              # start
-per1_end        = per1_start + 30-1 # end year
+per1_end        = per1_start + period_span-1 # end year
 
 ```
 
@@ -65,7 +67,11 @@ CESM files can be found at
 
 "http://kyrill.ias.sdsmt.edu:8080/thredds/catalog.html"
 
-In this case we are reading in the RCP85 and RCP45 Precipitation Files (hourly) into R directly.
+In this case we are reading in the RCP85 and RCP45 Temperatures Files (hourly) into R directly.
+
+this is using our local THREDDS server.  If you don't have thredds uyou will have to save it to your local machine from the THREDDS server
+
+http://kyrill.ias.sdsmt.edu:8080/thredds/catalog/CESM_SODAK/catalog.html
 
 ```{r}
 
@@ -73,9 +79,16 @@ URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/CESM_SODAK
 
 # Here is the variable we want to extract
 #  these should match the files names since the variable in the file and file name match
-target_variable = "PRECT"
-variable_name   = "Total Daily Precip"
-variable_units  = "mm" # after post processing (starts as m/s)
+
+target_variable = "TREFHTMX"
+variable_name   = "Daily Max Temperatures"
+variable_units  = "°F" # after post processing (starts as m/s)
+
+threshold_value = 90. 
+
+# get the extreme function to use
+
+extreme_func = "GP"
 
 
 # get URL files
@@ -174,7 +187,7 @@ time_days.45 = time_days.85
 time_days    = time_days.85
 
 # and tidy things up
-remove(y1,y2,yy,mm,dd,nd,nm)
+remove(y1,y2,yy,mm,nd,nm)
 
 ```
 
@@ -223,7 +236,7 @@ var2d.45 = ncvar_get(nc      = nc.45,                      # netcdf file ID
                      verbose = FALSE,                      # print diagnostic data
                      start   = c( 1,  1,           1,  1), # starting coordinates
                      count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
-                     ) * 86400. * 1000.0                   # scaling precip from m/s to mm/dy
+                     ) * 9./5. - 459.67                  # scaling temperature from K to DegF
 
 ```
 
@@ -237,7 +250,7 @@ var2d.85 = ncvar_get(nc      = nc.85,                      # netcdf file ID
                      verbose = FALSE,                      # print diagnostic data
                      start   = c( 1,  1,  1,  1),          # starting coordinates
                      count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
-                     ) * 86400. * 1000.0                   # scaling precip from m/s to mm/dy
+                     ) * 9./5. - 459.67                  # scaling temps from K to degF
 ```
 
 Assign dimension names to arrays.  these are strings including things that shoudl be numbers.
@@ -293,8 +306,7 @@ Now we flatten all of our fields into a single list or data frame by "flattening
 
 ```{r}
 
-
-precip = melt(data        = var1d.45,              # your array
+variable = melt(data      = var1d.45,              # your array
               na.rm       = TRUE,                  # don't use missing values
               varnames    = c("Time","Ensemble"),  # names of your two dimensions
               value.name  = "RCP45")               # the final name of your aray value
@@ -317,17 +329,17 @@ Add we add time... and pull our RCP8.5 into our RCP4.5 set.
 
 ```{r}
 
-precip$Time = as.Date(precip$Time, origin="1970-01-01")
+variable$Time = as.Date(variable$Time, origin="1970-01-01")
 
-precip$RCP85 = var1d.85$RCP85
+variable$RCP85 = var1d.85$RCP85
 ```
 
 We can also add some utility vectors to break things down by month, year and decade
 
 ```{r}
-precip$month   = month(precip$Time)
-precip$year   = year(precip$Time)
-precip$decade = trunc( precip$year/10. )*10
+variable$month   = month(variable$Time)
+variable$year   = year(variable$Time)
+variable$decade = trunc( variable$year/10. )*10
 
 ```
 
@@ -349,20 +361,20 @@ remove(var1d.85,
 
 ```
 
-Finally, we need to floor our precip data to floor our precip data to a non-trace being equal to 0.005 in (0.127 mm) or greater.
+And we'll limit ourselves to the period between May and September
 
 ```{r}
-
-precip$RCP45[ precip$RCP45 < 0.127 ] <- 0
-precip$RCP85[ precip$RCP85 < 0.127 ] <- 0
+#  variable = variable[(variable$month>=5 & variable$month<=9),]
 
 
 ```
 
+
+
 It's not a bad idea to review the content of your data frame... 
 
 ```{r}
-str(precip)
+str(variable)
 
 ```
 
@@ -380,7 +392,7 @@ First we start extract our subset.
 ```{r}
 ens_target = 1 # just use the first ensemble member
 
-subset = subset(precip,  
+subset = subset(variable,  
                 (Ensemble==ens_target)  &
                 ((year>=base_start) & 
                  (year<=base_end)   )    
@@ -388,8 +400,12 @@ subset = subset(precip,
 
 # always nice to see what your data looks like.
 
-hist(x      = subset$RCP45[subset$RCP45>0], # omitting zero precip days
-     xlab   = "Non-Zero Daily Precip (mm)",
+hist(x      = subset$RCP45, # omitting zero temperatures days
+     xlab   = paste(variable_name,                   # xaxis title
+                    " (",
+                    variable_units,
+                    ")",
+                    sep=""),
      main   = paste(location_name, 
                     "RCP4.5 Ensemble Member 1",
                     sep = " "),
@@ -414,14 +430,13 @@ We are also using the Generalized Pareto method.
 
 fit_GP  = fevd(x          = RCP45, 
                data       = subset, 
-               units      = "mm",
-               time.units = "days",
-               threshold  = 2.0,
-               type       = "GP",
                verbose    = TRUE,
+               threshold  = threshold_value,
+               units      = variable_units,
+               time.units = "365/year",
+               type       = "GP",
                span       = period_span
                )
-
 
 
 
@@ -438,9 +453,9 @@ We can also extract specific return events.
 
 ```{r}
 
-return_intervals = seq(from =              2,
-                       to   =  period_span/2,
-                       by   =              1)
+return_intervals = seq(from =             2,
+                       to   = period_span/2,
+                       by   =             1)
 
 
 n_return_intervals = length(return_intervals) 
@@ -462,7 +477,6 @@ remove(return_GP,
 To implement. Let's create the storage arrays  We will copy this over and over.
 
 ```{r}
-
 
 # for each case/period create arrays for the return and CI bounds
 
@@ -510,7 +524,7 @@ for (ens_target in 1:n_ensembles) {
   
   # create segments for RCP 45 and RCP 85 for your period(s)
   
-  subset = subset(precip,
+  subset = subset(variable,
                   (Ensemble==ens_target)  &
                   ((year>=base_start) & 
                      (year<=base_end)   )
@@ -520,21 +534,21 @@ for (ens_target in 1:n_ensembles) {
   
   fit_GP_45 = fevd(x          = RCP45,
                    data       = subset,
-                   units      = "mm",
-                   time.units = "365/year",
-                   threshold  = 2.0,
-                   type       = "GP",
                    verbose    = FALSE,
+                   threshold  = threshold_value,
+                   units      = variable_units,
+                   time.units = "365/year",
+                   type       = "GP",
                    span       = period_span
                    )
   
   fit_GP_85 = fevd(x          = RCP85,
                    data       = subset,
-                   units      = "mm",
+                    verbose    = FALSE,
+                   threshold  = threshold_value,
+                   units      = variable_units,
                    time.units = "365/year",
-                   threshold  = 2.0,
                    type       = "GP",
-                   verbose    = FALSE,
                    span       = period_span
                    )
   
@@ -576,7 +590,7 @@ for (ens_target in 1:n_ensembles) {
   
   # create segments for RCP 45 and RCP 85 for your period(s)
   
-  subset = subset(precip,
+  subset = subset(variable,
                   (Ensemble==ens_target)  &
                   ((year>=per1_start) & 
                      (year<=per1_end)   )
@@ -586,21 +600,21 @@ for (ens_target in 1:n_ensembles) {
   
   fit_GP_45 = fevd(x          = RCP45,
                    data       = subset,
-                   units      = "mm",
-                   time.units = "365/year",
-                   threshold  = 2.0,
-                   type       = "GP",
                    verbose    = FALSE,
+                   threshold  = threshold_value,
+                   units      = variable_units,
+                   time.units = "365/year",
+                   type       = "GP",
                    span       = period_span
                    )
   
   fit_GP_85 = fevd(x          = RCP85,
                    data       = subset,
-                   units      = "mm",
-                   time.units = "365/year",
-                   threshold  = 2.0,
-                   type       = "GP",
                    verbose    = FALSE,
+                   threshold  = threshold_value,
+                   units      = variable_units,
+                   time.units = "365/year",
+                   type       = "GP",
                    span       = period_span
                    )
   
@@ -853,7 +867,7 @@ beanplot(formula     = RCP85_Return_Period~return_intervals,  # formula selectio
                              ")",
                              sep=""),
          log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
-         xlim        = c(0, period_span/2),                   # x axis range
+         xlim        = c(0,period_span/2),                    # x axis range
          ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
                              rcp85_base$RCP85_Lower_95_CI),
                          max(rcp45_base$RCP45_Upper_95_CI,
@@ -968,7 +982,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              ")",
                              sep=""),
          log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
-         xlim        = c(0, period_span/2),                   # x axis range
+         xlim        = c(0,period_span/2),                    # x axis range
          ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
                              rcp85_base$RCP85_Lower_95_CI),
                          max(rcp45_base$RCP45_Upper_95_CI,
@@ -1053,15 +1067,15 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              ")",
                              sep=""),
          log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
-         xlim        = c(0, period_span/2),                   # x axis range
+         xlim        = c(0,period_span/2),                    # x axis range
          ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
                              rcp45_per1$RCP45_Lower_95_CI,
-                             rcp85_base$RCP45_Lower_95_CI,
-                             rcp85_per1$RCP45_Lower_95_CI),
+                             rcp85_base$RCP85_Lower_95_CI,
+                             rcp85_per1$RCP85_Lower_95_CI),
                          max(rcp45_base$RCP45_Upper_95_CI,
                              rcp45_per1$RCP45_Upper_95_CI,
-                             rcp45_base$RCP45_Upper_95_CI,
-                             rcp85_per1$RCP45_Upper_95_CI)
+                             rcp85_base$RCP85_Upper_95_CI,
+                             rcp85_per1$RCP85_Upper_95_CI)
                         )
         )
 
@@ -1144,15 +1158,15 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              ")",
                              sep=""),
          log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
-         xlim        = c(0, period_span/2),                   # x axis range
+         xlim        = c(0,period_span/2),                           # x axis range
          ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
                              rcp45_per1$RCP45_Lower_95_CI,
                              rcp85_base$RCP45_Lower_95_CI,
                              rcp85_per1$RCP45_Lower_95_CI),
                          max(rcp45_base$RCP45_Upper_95_CI,
                              rcp45_per1$RCP45_Upper_95_CI,
-                             rcp45_base$RCP45_Upper_95_CI,
-                             rcp85_per1$RCP45_Upper_95_CI)
+                             rcp85_base$RCP85_Upper_95_CI,
+                             rcp85_per1$RCP85_Upper_95_CI)
                         )
         )
 
