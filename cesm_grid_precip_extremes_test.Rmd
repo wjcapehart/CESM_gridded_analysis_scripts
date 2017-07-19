@@ -1,8 +1,8 @@
 ---
 title: "R extRemes Test with CESM data and some horesplay with ensembles"
 output:
-  html_document: default
   html_notebook: default
+  html_document: default
 ---
 
 
@@ -26,6 +26,9 @@ Let's start by identifying specific points, days and ensembles from which to pul
 It's nice to put this data up top to make changing locatons easier.
 
 ```{r}
+
+location_name = "Rapid City"
+
 target_lon  = -104. # degrees east
 target_lat  =   44. # degrees north
 
@@ -386,7 +389,9 @@ subset = subset(precip,
 
 hist(x      = subset$RCP45[subset$RCP45>0], # omitting zero precip days
      xlab   = "Non-Zero Daily Precip (mm)",
-     main   = "RCP4.5 Ensemble Member 1",
+     main   = paste(location_name, 
+                    "RCP4.5 Ensemble Member 1",
+                    sep = " "),
      freq   = TRUE,
      breaks = 100
      )
@@ -784,10 +789,12 @@ Plot return output
 
 ```{r}
 
+# I am making my own colours
+
 darkcyan = rgb(red   = 0.00,
                green = 0.50,
                blue  = 0.50, 
-               alpha = 0.75)
+               alpha = 0.75)  # 1 = opaque; 0 = fully clear
 
 cyan     = rgb(red   = 0.00,
                green = 1.00,
@@ -835,7 +842,8 @@ beanplot(formula     = RCP85_Return_Period~return_intervals,  # formula selectio
          border      = darkmag,                               # border color
          overallline = "median",                              # can't get rid of this dang thing
          beanlines   = "median",                              # use median for the "central value"
-         main        = paste("Return Intervals for ",         # title caption
+         main        = paste(location_name, 
+                             " Return Intervals for ",         # title caption
                              base_start,
                             "-",
                             base_end,
@@ -931,7 +939,8 @@ base_all$merged_period_scenarios = paste(sprintf("%02d", base_all$return_interva
 
 # tidy up!
 
-remove(delteme)
+remove(deleteme)
+
 ```
 And now we can plot this one.  This will create a "split" bean plot which is about as complex and messy as I want to get right now.
 
@@ -947,7 +956,8 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
          overallline = "median",                              # can't get rid of this dang thing
          beanlines   = "median",                              # use median for the "central value"
          side        = "both",
-         main        = paste("Return Intervals for ",         # title caption
+         main        = paste(location_name,
+                             " Return Intervals for ",         # title caption
                              base_start,
                              "-",
                              base_end,
@@ -968,7 +978,190 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                         )
         )
 
-legend("topleft", fill = c("blue", "red"), legend = c("RCP 4.5", "RCP 8.5"))
+legend("topleft", 
+       fill   = c("blue", "red"), 
+       legend = c("RCP 4.5", "RCP 8.5"))
 
 ```
 
+Now let's try this again and do a comparison between the RCP 8.5 between the base period and the future period.
+
+So we will merge-n-melt the RCP85 Base and Period 1 values into a single data set.
+
+```{r}
+
+##################################################
+#
+#  Processing RCP 8.5
+#
+
+# create a temporary array to hold just the return periods for simplicity
+
+deleteme     = data.frame(Ensembles        = rcp85_base$Ensembles,
+                          return_intervals = rcp85_base$return_intervals,
+                          Baseline         = rcp85_base$RCP85_Return_Period,
+                          TestPeriod       = rcp85_per1$RCP85_Return_Period)
+colnames(deleteme) = c("Ensembles","return_intervals",
+                        paste(base_start, "-", base_end, sep=""),
+                        paste(per1_start, "-", per1_end, sep=""))
+
+# melt the two period columns into a new field. 
+rcp85_all    = melt(data       = deleteme,
+                    varnames   = c("Ensembles","return_intervals","Time_Period"),
+                    id.vars    = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Return_Period_Values")
+
+colnames(rcp85_all) = c("Ensembles","return_intervals","Time_Period","Return_Period_Values")
+
+
+# create the merged variable for plotting...
+
+
+rcp85_all$merged_period_scenarios = paste(sprintf("%02d", rcp85_all$return_intervals),
+                                          rcp85_all$Time_Period,
+                                          sep = " ")
+
+# tidy up
+
+remove (deleteme)
+
+#
+##################################################
+
+```
+
+And let's plot 'er up!
+
+```{r}
+
+
+beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula selection for y axis
+         data        = rcp85_all,                                     # data frame to use
+         col         = list(c(blue, darkblue,darkblue,darkblue),  # same order as earlier for each series
+                            c(red,  darkred,  darkred, darkred)), 
+         border      = c(darkblue,darkred),                              
+         overallline = "median",                              # can't get rid of this dang thing
+         beanlines   = "median",                              # use median for the "central value"
+         side        = "both",
+         main        = paste(location_name,
+                             "Return Intervals for RCP 8.5",
+                             sep = " "),         # title caption
+         xlab        = "Return Period (Years)",               # xaxis title
+         ylab        = paste("Maximum ",
+                             variable_name,                   # yaxis title
+                             " (",
+                             variable_units,
+                             ")",
+                             sep=""),
+         log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
+         xlim        = c(0,20),                               # x axis range
+         ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
+                             rcp45_per1$RCP45_Lower_95_CI,
+                             rcp85_base$RCP45_Lower_95_CI,
+                             rcp85_per1$RCP45_Lower_95_CI),
+                         max(rcp45_base$RCP45_Upper_95_CI,
+                             rcp45_per1$RCP45_Upper_95_CI,
+                             rcp45_base$RCP45_Upper_95_CI,
+                             rcp85_per1$RCP45_Upper_95_CI)
+                        )
+        )
+
+legend("topleft", 
+       fill = c("blue", "red"), 
+       legend = c(paste(base_start, "-", base_end, sep=""), 
+                  paste(per1_start, "-", per1_end, sep=""))
+       )
+
+```
+
+
+And a few CAREFUL cuts and pastes will do the same for the 4.5!
+
+
+```{r}
+
+##################################################
+#
+#  Processing RCP 4.5
+#
+
+# create a temporary array to hold just the return periods for simplicity
+
+deleteme     = data.frame(Ensembles        = rcp45_base$Ensembles,
+                          return_intervals = rcp45_base$return_intervals,
+                          Baseline         = rcp45_base$RCP45_Return_Period,
+                          TestPeriod       = rcp45_per1$RCP45_Return_Period)
+colnames(deleteme) = c("Ensembles","return_intervals",
+                        paste(base_start, "-", base_end, sep=""),
+                        paste(per1_start, "-", per1_end, sep=""))
+
+# melt the two period columns into a new field. 
+rcp45_all    = melt(data       = deleteme,
+                    varnames   = c("Ensembles","return_intervals","Time_Period"),
+                    id.vars    = c("Ensembles","return_intervals"),
+                    na.rm      = TRUE,
+                    value.name = "Return_Period_Values")
+
+colnames(rcp45_all) = c("Ensembles","return_intervals","Time_Period","Return_Period_Values")
+
+
+# create the merged variable for plotting...
+
+
+rcp45_all$merged_period_scenarios = paste(sprintf("%02d", rcp45_all$return_intervals),
+                                          rcp85_all$Time_Period,
+                                          sep = " ")
+
+# tidy up
+
+remove (deleteme)
+
+#
+##################################################
+
+```
+
+And let's plot 'er up!
+
+```{r}
+
+
+beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula selection for y axis
+         data        = rcp45_all,                                     # data frame to use
+         col         = list(c(blue, darkblue,darkblue,darkblue),  # same order as earlier for each series
+                            c(red,  darkred,  darkred, darkred)), 
+         border      = c(darkblue,darkred),                              
+         overallline = "median",                              # can't get rid of this dang thing
+         beanlines   = "median",                              # use median for the "central value"
+         side        = "both",
+         main        = paste(location_name,
+                             "Return Intervals for RCP 4.5",
+                             sep = " "),         # title caption
+         xlab        = "Return Period (Years)",               # xaxis title
+         ylab        = paste("Maximum ",
+                             variable_name,                   # yaxis title
+                             " (",
+                             variable_units,
+                             ")",
+                             sep=""),
+         log         = "",                                    # overide log axis on y (it defaults to log for big datasets)
+         xlim        = c(0,20),                               # x axis range
+         ylim        = c(min(rcp45_base$RCP45_Lower_95_CI,    # y axis range
+                             rcp45_per1$RCP45_Lower_95_CI,
+                             rcp85_base$RCP45_Lower_95_CI,
+                             rcp85_per1$RCP45_Lower_95_CI),
+                         max(rcp45_base$RCP45_Upper_95_CI,
+                             rcp45_per1$RCP45_Upper_95_CI,
+                             rcp45_base$RCP45_Upper_95_CI,
+                             rcp85_per1$RCP45_Upper_95_CI)
+                        )
+        )
+
+legend("topleft", 
+       fill = c("blue", "red"), 
+       legend = c(paste(base_start, "-", base_end, sep=""), 
+                  paste(per1_start, "-", per1_end, sep=""))
+       )
+
+```
