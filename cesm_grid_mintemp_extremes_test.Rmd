@@ -2,8 +2,8 @@
 title: R extRemes Test with CESM data and some horesplay with ensembles (Max Daily
   Temps)
 output:
-  html_notebook: default
   html_document: default
+  html_notebook: default
 ---
 
 
@@ -12,8 +12,6 @@ Processing for Max Temperature Daily Extremes Using CESM Model Output.
 Temperature is tricky since we will be using a Generalized Pareto to target the extreme values and that also requires a threshold to which the method is sensitive.  Temperature complicates this since we are looking at a goodly amount of non-stationarity as we move into the future.
 
 Warning Typos are Legion.
-
-
 
 Load Required Libraries
 ```{r}
@@ -44,10 +42,10 @@ And we should include our time periods.  Here, we have a baseline period and a f
 
 ```{r}
 period_span     = 30.
-base_start      = 1997 - period_span/2 # 1976              # start year
+base_start      = 1976              # start year
 base_end        = base_start + period_span-1 # end year  (just before our simulations diverge)
 
-per1_start      = 2017- period_span/2              # start
+per1_start      = 2050              # start
 per1_end        = per1_start + period_span-1 # end year
 
 ```
@@ -82,11 +80,11 @@ URL_Root_Directory <- "http://kyrill.ias.sdsmt.edu:8080/thredds/dodsC/CESM_SODAK
 # Here is the variable we want to extract
 #  these should match the files names since the variable in the file and file name match
 
-target_variable = "TREFHTMX"
-variable_name   = "Daily Max Temperatures"
+target_variable = "TREFHTMN"
+variable_name   = "Daily Min Temperatures"
 variable_units  = "°F" # after post processing (starts as m/s)
 
-threshold_value = 90. 
+threshold_value = 0. 
 
 # get the extreme function to use
 
@@ -240,6 +238,7 @@ var2d.45 = ncvar_get(nc      = nc.45,                      # netcdf file ID
                      count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
                      ) * 9./5. - 459.67                  # scaling temperature from K to DegF
 
+var2d.45 = - var2d.45
 ```
 
 ... Then we pull the RCP 8.5 scenario...
@@ -253,6 +252,9 @@ var2d.85 = ncvar_get(nc      = nc.85,                      # netcdf file ID
                      start   = c( 1,  1,  1,  1),          # starting coordinates
                      count   = c(10,  7, n_ensembles, nt)  # end coordinates (we're only going to 2080 and using 15 ensembles)
                      ) * 9./5. - 459.67                  # scaling temps from K to degF
+
+var2d.85 = - var2d.85
+
 ```
 
 Assign dimension names to arrays.  these are strings including things that shoudl be numbers.
@@ -398,13 +400,13 @@ subset = subset(variable,
                 (Ensemble==ens_target)  &
                 ((year>=base_start) & 
                  (year<=base_end)   )    
-                )
+                ) 
 
 # always nice to see what your data looks like.
 
 hist(x      = subset$RCP45, # omitting zero temperatures days
      xlab   = paste(variable_name,                   # xaxis title
-                    " (",
+                    " ([Neg]",
                     variable_units,
                     ")",
                     sep=""),
@@ -434,7 +436,7 @@ fit_GP  = fevd(x          = RCP45,
                data       = subset, 
                verbose    = TRUE,
                threshold  = threshold_value,
-               units      = variable_units,
+               units      = paste("[Neg]",variable_units),
                time.units = "365/year",
                type       = "GP",
                span       = period_span
@@ -538,7 +540,7 @@ for (ens_target in 1:n_ensembles) {
                    data       = subset,
                    verbose    = FALSE,
                    threshold  = threshold_value,
-                   units      = variable_units,
+                   units      = paste("[Neg]",variable_units),
                    time.units = "365/year",
                    type       = "GP",
                    span       = period_span
@@ -548,7 +550,7 @@ for (ens_target in 1:n_ensembles) {
                    data       = subset,
                     verbose    = FALSE,
                    threshold  = threshold_value,
-                   units      = variable_units,
+                   units      = paste("[Neg]",variable_units),
                    time.units = "365/year",
                    type       = "GP",
                    span       = period_span
@@ -560,18 +562,18 @@ for (ens_target in 1:n_ensembles) {
                            return.period = return_intervals,
                            do.ci         = TRUE)
   
-  rcp45_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-  rcp45_base_period_return[ens_target, ] = return_GP[ , 2]
-  rcp45_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+  rcp45_base_period_ci_lb[ ens_target, ] = -return_GP[ , 3]
+  rcp45_base_period_return[ens_target, ] = -return_GP[ , 2]
+  rcp45_base_period_ci_ub[ ens_target, ] = -return_GP[ , 1]
 
   
   return_GP = return.level(x             = fit_GP_85,
                            return.period = return_intervals,
                            do.ci         = TRUE)
    
-  rcp85_base_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-  rcp85_base_period_return[ens_target, ] = return_GP[ , 2]
-  rcp85_base_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+  rcp85_base_period_ci_lb[ ens_target, ] = -return_GP[ , 3]
+  rcp85_base_period_return[ens_target, ] = -return_GP[ , 2]
+  rcp85_base_period_ci_ub[ ens_target, ] = -return_GP[ , 1]
   
   # tidy up
   
@@ -604,7 +606,7 @@ for (ens_target in 1:n_ensembles) {
                    data       = subset,
                    verbose    = FALSE,
                    threshold  = threshold_value,
-                   units      = variable_units,
+                   units      = paste("[Neg]",variable_units),
                    time.units = "365/year",
                    type       = "GP",
                    span       = period_span
@@ -614,7 +616,7 @@ for (ens_target in 1:n_ensembles) {
                    data       = subset,
                    verbose    = FALSE,
                    threshold  = threshold_value,
-                   units      = variable_units,
+                   units      = paste("[Neg]",variable_units),
                    time.units = "365/year",
                    type       = "GP",
                    span       = period_span
@@ -626,18 +628,18 @@ for (ens_target in 1:n_ensembles) {
                            return.period = return_intervals,
                            do.ci         = TRUE)
   
-  rcp45_per1_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-  rcp45_per1_period_return[ens_target, ] = return_GP[ , 2]
-  rcp45_per1_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+  rcp45_per1_period_ci_lb[ ens_target, ] = -return_GP[ , 3]
+  rcp45_per1_period_return[ens_target, ] = -return_GP[ , 2]
+  rcp45_per1_period_ci_ub[ ens_target, ] = -return_GP[ , 1]
 
   
   return_GP = return.level(x             = fit_GP_85,
                            return.period = return_intervals,
                            do.ci         = TRUE)
    
-  rcp85_per1_period_ci_lb[ ens_target, ] = return_GP[ , 1]
-  rcp85_per1_period_return[ens_target, ] = return_GP[ , 2]
-  rcp85_per1_period_ci_ub[ ens_target, ] = return_GP[ , 3]
+  rcp85_per1_period_ci_lb[ ens_target, ] = -return_GP[ , 3]
+  rcp85_per1_period_return[ens_target, ] = -return_GP[ , 2]
+  rcp85_per1_period_ci_ub[ ens_target, ] = -return_GP[ , 1]
   
   # tidy up
   
@@ -977,7 +979,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              base_end,
                              sep=""),
          xlab        = "Return Period (Years)",               # xaxis title
-         ylab        = paste("Maximum ",
+         ylab        = paste("Minimum ",
                              variable_name,                   # yaxis title
                              " (",
                              variable_units,
@@ -1062,7 +1064,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              "Return Intervals for RCP 8.5",
                              sep = " "),         # title caption
          xlab        = "Return Period (Years)",               # xaxis title
-         ylab        = paste("Maximum ",
+         ylab        = paste("Minimum ",
                              variable_name,                   # yaxis title
                              " (",
                              variable_units,
@@ -1081,7 +1083,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                         )
         )
 
-legend("topleft", 
+legend("topright", 
        fill = c("blue", "red"), 
        legend = c(paste(base_start, "-", base_end, sep=""), 
                   paste(per1_start, "-", per1_end, sep=""))
@@ -1153,7 +1155,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                              "Return Intervals for RCP 4.5",
                              sep = " "),         # title caption
          xlab        = "Return Period (Years)",               # xaxis title
-         ylab        = paste("Maximum ",
+         ylab        = paste("Minimum ",
                              variable_name,                   # yaxis title
                              " (",
                              variable_units,
@@ -1172,7 +1174,7 @@ beanplot(formula     = Return_Period_Values~merged_period_scenarios,  # formula 
                         )
         )
 
-legend("topleft", 
+legend("topright", 
        fill = c("blue", "red"), 
        legend = c(paste(base_start, "-", base_end, sep=""), 
                   paste(per1_start, "-", per1_end, sep=""))
