@@ -172,7 +172,7 @@ do rcpl = 1, 1
    vf = 0
 
 
-
+nco_spatial_extraction_string = " -d lat,41.93717,47.59162 -d lon,253.75,265 "
    nco_spatial_extraction_string = " -d lat,"                  + \
                                     sprintf("%5.2f",far_south) + \
                                     ","                        + \

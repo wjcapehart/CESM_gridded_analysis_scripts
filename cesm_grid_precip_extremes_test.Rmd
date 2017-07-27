@@ -43,7 +43,7 @@ And we should include our time periods.  Here, we have a baseline period and a f
 base_start      = 1976              # start year
 base_end        = base_start + 30-1 # end year  (just before our simulations diverge)
 
-per1_start      = 2050              # start
+per1_start      = 2020              # start
 per1_end        = per1_start + 30-1 # end year
 
 ```

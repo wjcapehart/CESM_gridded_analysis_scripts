@@ -1,17 +1,11 @@
 ---
-title: R extRemes Test with CESM data and some horesplay with ensembles (Max Daily
-  Temps)
+title: Processing the 
 output:
   html_notebook: default
   html_document: default
 ---
 
 
-Processing for Max Temperature Daily Extremes Using CESM Model Output.
-
-Temperature is tricky since we will be using a Generalized Pareto to target the extreme values and that also requires a threshold to which the method is sensitive.  Temperature complicates this since we are looking at a goodly amount of non-stationarity as we move into the future.
-
-Warning Typos are Legion.
 
 
 
@@ -51,29 +45,6 @@ per1_start      = 2020             # start
 per1_end        = per1_start + period_span-1 # end year
 
 ```
-
-
-
-And while I am up here I am defining a "wetting rain" even threshold as any rain event exceeding 0.1" per day
-
-```{r}
-
-wetting_rain_treshold = 0.1 * 25.4 # in -> mm (0.1 in = 2.54 )
-
-```
-
-
-
-
-CESM files can be found at
-
-"http://kyrill.ias.sdsmt.edu:8080/thredds/catalog.html"
-
-In this case we are reading in the RCP85 and RCP45 Temperatures Files (hourly) into R directly.
-
-this is using our local THREDDS server.  If you don't have thredds uyou will have to save it to your local machine from the THREDDS server
-
-http://kyrill.ias.sdsmt.edu:8080/thredds/catalog/CESM_SODAK/catalog.html
 
 ```{r}
 
