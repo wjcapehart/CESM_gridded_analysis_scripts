@@ -14,6 +14,22 @@ location_name = "Rapid City"
 target_lon  = -104. # degrees east
 target_lat  =   44. # degrees north
 
+
+location_name = "Brookings"
+
+target_lon  = -96.7984 # degrees east
+target_lat  =   44.3114 # degrees north
+
+
+
+
+#location_name = "Phillip"#
+
+#target_lon  = -101.6651 # degrees east
+#target_lat  =  44.0394 # degrees north
+
+
+
 n_ensembles = 15
 
 
@@ -251,7 +267,6 @@ dimnames(HI_Hours_54C.85) <- list(as.Date(time_days, origin="1970-01-01"),ensemb
 
 
 remove(time_days.45,
-       time_days.85,
        RCP_45_File,
        RCP_85_File,
        URL_45,
@@ -447,7 +462,8 @@ beanplot(formula     = Stress_Duration~decade_Scenario,  # formula selection for
                              sep = " "),         # title caption
          xlab        = "Decade",                 # xaxis title
          ylab        = paste("Hrs/Yr of HI at/over Caution Level"),
-         log         = ""
+         log         = "",
+         na.omit = TRUE, cutmin=TRUE,bw="nrd0"
 )
 
 
@@ -478,7 +494,8 @@ beanplot(formula     = Stress_Duration~decade_Scenario,  # formula selection for
                              sep = " "),         # title caption
          xlab        = "Decade",                 # xaxis title
          ylab        = paste("Hours/Year of HI at/over Extrm. Caution Level"),
-         log         = ""
+         log         = "",
+         na.omit = TRUE, cutmin=TRUE,bw="nrd0"
 )
 
 
@@ -507,11 +524,42 @@ beanplot(formula     = Stress_Duration~decade_Scenario,  # formula selection for
                              sep = " "),         # title caption
          xlab        = "Decade",                 # xaxis title
          ylab        = paste("Hours/Year of HI at/over Danger Level"),
-         log         = ""
+         log         = "",
+         na.omit = TRUE, cutmin=TRUE,bw="nrd0"
 )
 
 
 legend("topleft", 
        fill = c("blue", "red"), 
        legend = c("RCP 4.5","RCP 8.5")  )
+
+
+
+workspace = subset(HI_By_Year,  
+                   (Risk_Category=="Extreme_Danger") & (Year >= 1990) & (Year <2050)  )    
+
+
+beanplot(formula     = Stress_Duration~decade_Scenario,  # formula selection for y axis
+         data        = workspace,                                     # data frame to use
+         col         = list(c(blue, darkblue,darkblue,darkblue),  # same order as earlier for each series
+                            c(red,  darkred,  darkred, darkred)), 
+         border      = c(darkblue,darkred),                              
+         overallline = "median",                              # can't get rid of this dang thing
+         beanlines   = "median",                              # use median for the "central value"
+         side        = "both",
+         main        = paste(location_name,
+                             "NWS Heat Index",
+                             sep = " "),         # title caption
+         xlab        = "Decade",                 # xaxis title
+         ylab        = paste("Hours/Year of HI at/over Extr. Danger Level"),
+         log         = "",
+         na.omit = TRUE, cutmin=TRUE,bw="nrd0"
+)
+
+
+legend("topleft", 
+       fill = c("blue", "red"), 
+       legend = c("RCP 4.5","RCP 8.5")  )
+
+
 
