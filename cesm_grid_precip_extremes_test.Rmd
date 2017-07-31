@@ -431,6 +431,7 @@ And we plot the results.  You would prefer for the lines to rest on the "1:1" th
 
 ```{r}
 plot(fit_GP)
+plot(fit_GP,"rl")
 ```
 
 We can also extract specific return events.
